@@ -3,6 +3,7 @@ apiVersion: machine.openshift.io/v1beta1
 kind: Machine
 metadata:
   generateName: powervs-actuator-testing-machine-
+  namespace: openshift-machine-api
   labels:
     machine.openshift.io/cluster-api-cluster: powervs-actuator-k8s
 spec:
@@ -13,13 +14,13 @@ spec:
       serviceInstanceID: e449d86e-c3a0-4c07-959e-8557fdf55482
       imageID: 45473216-7e3a-4711-8c14-28ada40a8de1
       userDataSecret:
-        name: powervs-actuator-user-data-secret
+        name: worker-user-data
       credentialsSecret:
         name: powervs-credentials-secret
-      machineType: s922
-      processorType: shared
-      cores: 0.25
-      memory: 4
-      subnets:
+      sysType: s922
+      procType: shared
+      processors: 0.25
+      memory: 8
+      networkIDs:
         - daf2b616-542b-47ed-8cec-ceaec1e90f4d
-      keyName: mkumatag-pub-key
+      keyPairName: karthik-ssh

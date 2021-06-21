@@ -77,13 +77,13 @@ func (in *PowerVSMachineProviderConfig) DeepCopyInto(out *PowerVSMachineProvider
 		*out = new(v1.LocalObjectReference)
 		**out = **in
 	}
-	if in.Subnets != nil {
-		in, out := &in.Subnets, &out.Subnets
+	if in.NetworkIDs != nil {
+		in, out := &in.NetworkIDs, &out.NetworkIDs
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
-	if in.KeyName != nil {
-		in, out := &in.KeyName, &out.KeyName
+	if in.KeyPairName != nil {
+		in, out := &in.KeyPairName, &out.KeyPairName
 		*out = new(string)
 		**out = **in
 	}

@@ -28,10 +28,10 @@ spec:
             name: worker-user-data
           credentialsSecret:
             name: powervs-credentials-secret
-          machineType: s922
-          processorType: shared
-          cores: 0.25
+          sysType: s922
+          procType: shared
+          processors: 0.25
           memory: 8
-          subnets:
+          networkIDs:
             - daf2b616-542b-47ed-8cec-ceaec1e90f4d
-          keyName: karthik-ssh
+          keyPairName: karthik-ssh

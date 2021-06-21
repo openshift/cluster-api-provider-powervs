@@ -51,23 +51,23 @@ type PowerVSMachineProviderConfig struct {
 	// CredentialsSecret is the k8s secret contains the API Key for IBM Cloud authentication
 	CredentialsSecret *corev1.LocalObjectReference `json:"credentialsSecret,omitempty"`
 
-	// MachineType is the System type used to host the vsi
-	MachineType string `json:"machineType"`
+	// SysType is the System type used to host the vsi
+	SysType string `json:"sysType"`
 
 	// ProcessorType is the processor type, e.g: dedicated, shared, capped
-	ProcessorType string `json:"processorType"`
+	ProcType string `json:"procType"`
 
-	// Cores is Number of processors allocated
-	Cores string `json:"cores"`
+	// Processors is Number of processors allocated
+	Processors string `json:"processors"`
 
 	// Memory is Amount of memory allocated (in GB)
 	Memory string `json:"memory"`
 
-	// Subnets is an array of network to be attached to the machine
-	Subnets []string `json:"subnets"`
+	// NetworkIDs is an array of network to be attached to the machine
+	NetworkIDs []string `json:"networkIDs"`
 
-	// KeyName is the name of the KeyPair to use for SSH
-	KeyName *string `json:"keyName,omitempty"`
+	// KeyPairName is the name of the SSH key pair provided to the server for authenticating users
+	KeyPairName *string `json:"keyPairName,omitempty"`
 }
 
 // LoadBalancerReference is a reference to a load balancer on PowerVS.
