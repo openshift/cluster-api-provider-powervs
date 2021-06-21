@@ -38,27 +38,27 @@ func launchInstance(machine *machinev1.Machine, machineProviderConfig *powervspr
 	if err != nil {
 		return nil, mapierrors.InvalidMachineConfiguration("failed to convert memory(%s) to float64", machineProviderConfig.Memory)
 	}
-	cores, err := strconv.ParseFloat(machineProviderConfig.Cores, 64)
+	processors, err := strconv.ParseFloat(machineProviderConfig.Processors, 64)
 	if err != nil {
-		return nil, mapierrors.InvalidMachineConfiguration("failed to convert Cores(%s) to float64", machineProviderConfig.Cores)
+		return nil, mapierrors.InvalidMachineConfiguration("failed to convert Cores(%s) to float64", machineProviderConfig.Processors)
 	}
 
 	var nets []*models.PVMInstanceAddNetwork
 
-	for _, net := range machineProviderConfig.Subnets {
+	for _, net := range machineProviderConfig.NetworkIDs {
 		nets = append(nets, &models.PVMInstanceAddNetwork{NetworkID: &net})
 	}
 
 	params := &p_cloud_p_vm_instances.PcloudPvminstancesPostParams{
 		Body: &models.PVMInstanceCreate{
 			ImageID:     &machineProviderConfig.ImageID,
-			KeyPairName: *machineProviderConfig.KeyName,
+			KeyPairName: *machineProviderConfig.KeyPairName,
 			Networks:    nets,
 			ServerName:  &machine.Name,
 			Memory:      &memory,
-			Processors:  &cores,
-			ProcType:    &machineProviderConfig.ProcessorType,
-			SysType:     machineProviderConfig.MachineType,
+			Processors:  &processors,
+			ProcType:    &machineProviderConfig.ProcType,
+			SysType:     machineProviderConfig.SysType,
 			UserData:    base64.StdEncoding.EncodeToString(userData),
 		},
 	}
