@@ -11,7 +11,7 @@ require (
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/golang/mock v1.4.4
 	github.com/onsi/ginkgo v1.15.0 // indirect
-	github.com/onsi/gomega v1.10.5 // indirect
+	github.com/onsi/gomega v1.10.5
 	github.com/openshift/api v0.0.0-20201216151826-78a19e96f9eb
 	github.com/openshift/machine-api-operator v0.2.1-0.20210104142355-8e6ae0acdfcf
 	github.com/pkg/errors v0.9.1

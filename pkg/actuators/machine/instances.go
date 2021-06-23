@@ -21,7 +21,7 @@ func removeStoppedMachine(machine *machinev1.Machine, client powervsclient.Clien
 		klog.Errorf("Error getting instance by name: %s, err: %v", machine.Name, err)
 		return fmt.Errorf("error getting instance by name: %s, err: %v", machine.Name, err)
 	} else if err == powervsclient.ErrorInstanceNotFound {
-		klog.Infof("Instance not found with name: %n", machine.Name)
+		klog.Infof("Instance not found with name: %s", machine.Name)
 		return nil
 	}
 
