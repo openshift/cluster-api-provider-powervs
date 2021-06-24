@@ -31,26 +31,36 @@ import (
 )
 
 const (
+	//TIMEOUT is default timeout used by Power VS client for operations like DeleteInstance
 	TIMEOUT = time.Hour
 
+	//DefaultCredentialNamespace is the default namespace used to create a client object
 	DefaultCredentialNamespace = "openshift-machine-api"
+	//DefaultCredentialSecret is the credential secret name used by node update controller to fetch API key
 	DefaultCredentialSecret    = "powervs-credentials-secret"
 
+	//InstanceStateNameShutoff is indicates the shutoff state of Power VS instance
 	InstanceStateNameShutoff = "SHUTOFF"
+	//InstanceStateNameActive is indicates the active state of Power VS instance
 	InstanceStateNameActive  = "ACTIVE"
+	//InstanceStateNameBuild is indicates the build state of Power VS instance
 	InstanceStateNameBuild   = "BUILD"
 
+	//PowerServiceType is the power-iaas service type of IBM Cloud
 	PowerServiceType = "power-iaas"
 )
 
 var (
+	//ErrorInstanceNotFound is error type for Instance Not Found
 	ErrorInstanceNotFound = errors.New("Instance Not Found")
 )
 
+//FormatProviderID formats and returns the provided instanceID
 func FormatProviderID(instanceID string) string {
 	return fmt.Sprintf("powervs:///%s", instanceID)
 }
 
+//PowerVSClientBuilderFuncType is function type for building the Power VS client
 type PowerVSClientBuilderFuncType func(client client.Client, secretName, namespace, cloudInstanceID, region string) (Client, error)
 
 func apiKeyFromSecret(secret *corev1.Secret) (apiKey string, err error) {
@@ -63,6 +73,7 @@ func apiKeyFromSecret(secret *corev1.Secret) (apiKey string, err error) {
 	return
 }
 
+//GetAPIKey will return the api key read from given secretName in a given namespace
 func GetAPIKey(ctrlRuntimeClient client.Client, secretName, namespace string) (apikey string, err error) {
 	if secretName == "" {
 		return "", machineapiapierrors.InvalidMachineConfiguration("empty secret name")
@@ -91,6 +102,7 @@ func getServiceURL(region string) (string, error) {
 	}
 }
 
+//NewValidatedClient creates and return a new Power VS client
 func NewValidatedClient(ctrlRuntimeClient client.Client, secretName, namespace, cloudInstanceID, region string) (Client, error) {
 	apikey, err := GetAPIKey(ctrlRuntimeClient, secretName, namespace)
 	if err != nil {
@@ -260,6 +272,7 @@ func authenticateAPIKey(sess *bxsession.Session) error {
 	return tokenRefresher.AuthenticateAPIKey(config.BluemixAPIKey)
 }
 
+//User is used to hold the user details
 type User struct {
 	ID         string
 	Email      string
