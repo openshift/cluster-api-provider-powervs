@@ -37,14 +37,14 @@ const (
 	//DefaultCredentialNamespace is the default namespace used to create a client object
 	DefaultCredentialNamespace = "openshift-machine-api"
 	//DefaultCredentialSecret is the credential secret name used by node update controller to fetch API key
-	DefaultCredentialSecret    = "powervs-credentials-secret"
+	DefaultCredentialSecret = "powervs-credentials-secret"
 
 	//InstanceStateNameShutoff is indicates the shutoff state of Power VS instance
 	InstanceStateNameShutoff = "SHUTOFF"
 	//InstanceStateNameActive is indicates the active state of Power VS instance
-	InstanceStateNameActive  = "ACTIVE"
+	InstanceStateNameActive = "ACTIVE"
 	//InstanceStateNameBuild is indicates the build state of Power VS instance
-	InstanceStateNameBuild   = "BUILD"
+	InstanceStateNameBuild = "BUILD"
 
 	//PowerServiceType is the power-iaas service type of IBM Cloud
 	PowerServiceType = "power-iaas"
@@ -52,7 +52,7 @@ const (
 
 var (
 	//ErrorInstanceNotFound is error type for Instance Not Found
-	ErrorInstanceNotFound = errors.New("Instance Not Found")
+	ErrorInstanceNotFound = errors.New("instance Not Found")
 )
 
 //FormatProviderID formats and returns the provided instanceID
