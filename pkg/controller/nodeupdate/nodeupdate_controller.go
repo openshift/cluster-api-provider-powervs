@@ -26,7 +26,7 @@ const (
 	requeueDurationWhenVMNotReady = 1 * time.Minute
 	requeueDurationWhenVMNotFound = 2 * time.Minute
 	//TODO: should this value be flag driven
-	kConcurrencyLimit = 5
+	concurrencyLimit = 5
 )
 
 var _ reconcile.Reconciler = &providerIDReconciler{}
@@ -80,7 +80,7 @@ func (r *providerIDReconciler) Reconcile(ctx context.Context, request reconcile.
 
 	var instance *models.PVMInstanceReference
 	//TODO: Consider initializing at package level, if needed
-	concurrencyController := make(chan struct{}, kConcurrencyLimit)
+	concurrencyController := make(chan struct{}, concurrencyLimit)
 	resultChan := make(chan serviceInstanceResult, len(serviceInstances))
 	var errMsg error
 	var producerWg, receiverWg sync.WaitGroup
@@ -191,7 +191,7 @@ func (r *providerIDReconciler) getInstances(serviceInstance bluemixmodels.Servic
 
 // Add registers a new provider ID reconciler controller with the controller manager
 func Add(mgr manager.Manager) error {
-	reconciler, err := NewProviderIDReconciler(mgr)
+	reconciler, err := newProviderIDReconciler(mgr)
 
 	if err != nil {
 		return fmt.Errorf("error building reconciler: %v", err)
@@ -211,8 +211,8 @@ func Add(mgr manager.Manager) error {
 	return nil
 }
 
-// NewProviderIDReconciler creates a new providerID reconciler
-func NewProviderIDReconciler(mgr manager.Manager) (*providerIDReconciler, error) {
+// newProviderIDReconcilerv creates a new providerID reconciler
+func newProviderIDReconciler(mgr manager.Manager) (*providerIDReconciler, error) {
 	r := providerIDReconciler{
 		client: mgr.GetClient(),
 	}
