@@ -27,9 +27,16 @@ const (
 	requeueDurationWhenVMNotFound = 2 * time.Minute
 	//TODO: should this value be flag driven
 	concurrencyLimit = 5
+
+	//debugLevel helps in enabling the debug while creating a Power VS client
+	debugLevel = 6
 )
 
-var _ reconcile.Reconciler = &providerIDReconciler{}
+var (
+	_           reconcile.Reconciler = &providerIDReconciler{}
+	enableDebug bool
+	callOnce    sync.Once
+)
 
 type providerIDReconciler struct {
 	client               client.Client
@@ -60,6 +67,9 @@ func (r *providerIDReconciler) Reconcile(ctx context.Context, request reconcile.
 	if node.Spec.ProviderID != "" {
 		return reconcile.Result{}, nil
 	}
+
+	//call the getLogVerbosityLevel only once to set the value for global enableDebug variable
+	callOnce.Do(getLogVerbosityLevel)
 
 	klog.Infof("%s: ProviderID is not updated in the node - update it", node.Name)
 
@@ -93,7 +103,7 @@ func (r *providerIDReconciler) Reconcile(ctx context.Context, request reconcile.
 		//Get service instances
 		go func(serviceInstance bluemixmodels.ServiceInstanceV2) {
 			defer producerWg.Done()
-			r.getInstances(serviceInstance, node.Name, resultChan, concurrencyController)
+			r.getInstances(serviceInstance, node.Name, resultChan, concurrencyController, enableDebug)
 		}(i)
 
 		//Call only once in a loop and read the result channel to process the output
@@ -154,13 +164,14 @@ type serviceInstanceResult struct {
 }
 
 func (r *providerIDReconciler) getInstances(serviceInstance bluemixmodels.ServiceInstanceV2, nodeName string,
-	resultChan chan serviceInstanceResult, concurrencyController chan struct{}) {
+	resultChan chan serviceInstanceResult, concurrencyController chan struct{}, debug bool) {
 	defer func() {
 		<-concurrencyController
 	}()
 	var result serviceInstanceResult
 	var instance *models.PVMInstanceReference
-	cl, err := powervsclient.NewValidatedClient(r.client, powervsclient.DefaultCredentialSecret, powervsclient.DefaultCredentialNamespace, serviceInstance.Guid, "")
+	cl, err := powervsclient.NewValidatedClient(r.client, powervsclient.DefaultCredentialSecret,
+		powervsclient.DefaultCredentialNamespace, serviceInstance.Guid, "", debug)
 	if err != nil {
 		result = serviceInstanceResult{
 			err: fmt.Errorf("%s: failed to create NewValidatedClient, with error: %v", nodeName, err),
@@ -217,4 +228,8 @@ func newProviderIDReconciler(mgr manager.Manager) (*providerIDReconciler, error)
 		client: mgr.GetClient(),
 	}
 	return &r, nil
+}
+
+func getLogVerbosityLevel() {
+	enableDebug = klog.V(debugLevel).Enabled()
 }
