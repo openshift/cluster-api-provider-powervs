@@ -61,7 +61,8 @@ func FormatProviderID(instanceID string) string {
 }
 
 //PowerVSClientBuilderFuncType is function type for building the Power VS client
-type PowerVSClientBuilderFuncType func(client client.Client, secretName, namespace, cloudInstanceID, region string) (Client, error)
+type PowerVSClientBuilderFuncType func(client client.Client, secretName, namespace, cloudInstanceID, region string,
+	debug bool) (Client, error)
 
 func apiKeyFromSecret(secret *corev1.Secret) (apiKey string, err error) {
 	switch {
@@ -103,7 +104,8 @@ func getServiceURL(region string) (string, error) {
 }
 
 //NewValidatedClient creates and return a new Power VS client
-func NewValidatedClient(ctrlRuntimeClient client.Client, secretName, namespace, cloudInstanceID, region string) (Client, error) {
+func NewValidatedClient(ctrlRuntimeClient client.Client, secretName, namespace, cloudInstanceID, region string,
+	debug bool) (Client, error) {
 	apikey, err := GetAPIKey(ctrlRuntimeClient, secretName, namespace)
 	if err != nil {
 		return nil, err
@@ -168,7 +170,7 @@ func NewValidatedClient(ctrlRuntimeClient client.Client, secretName, namespace, 
 	}
 	zone := resource.RegionID
 
-	c.session, err = ibmpisession.New(c.Config.IAMAccessToken, r, true, time.Hour, c.User.Account, zone)
+	c.session, err = ibmpisession.New(c.Config.IAMAccessToken, r, debug, time.Hour, c.User.Account, zone)
 	if err != nil {
 		return nil, err
 	}

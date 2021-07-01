@@ -17,6 +17,7 @@ import (
 
 const (
 	userDataSecretKey = "userData"
+	debugLevel        = 6
 )
 
 // dhcpDomainKeyName is a variable so we can reference it in unit tests.
@@ -66,7 +67,10 @@ func newMachineScope(params machineScopeParams) (*machineScope, error) {
 		credentialsSecretName = providerSpec.CredentialsSecret.Name
 	}
 
-	powerVSClient, err := params.powerVSClientBuilder(params.client, credentialsSecretName, params.machine.Namespace, providerSpec.ServiceInstanceID, providerSpec.Region)
+	debug := enableDebugMode()
+
+	powerVSClient, err := params.powerVSClientBuilder(params.client, credentialsSecretName, params.machine.Namespace,
+		providerSpec.ServiceInstanceID, providerSpec.Region, debug)
 	if err != nil {
 		return nil, machineapierros.InvalidMachineConfiguration("failed to create powervs client: %v", err.Error())
 	}
@@ -172,4 +176,8 @@ func (s *machineScope) setProviderStatus(instance *models.PVMInstance, condition
 
 	s.machine.Status.Addresses = networkAddresses
 	s.providerStatus.Conditions = setPowerVSMachineProviderCondition(condition, s.providerStatus.Conditions)
+}
+
+func enableDebugMode() bool {
+	return klog.V(debugLevel).Enabled()
 }
