@@ -13,6 +13,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+
+	configv1 "github.com/openshift/api/config/v1"
 )
 
 const (
@@ -26,8 +28,12 @@ var (
 
 func TestMain(m *testing.M) {
 	testEnv := &envtest.Environment{
-		CRDDirectoryPaths: []string{filepath.Join("..", "..", "..", "config", "crds")},
+		CRDDirectoryPaths: []string{
+			filepath.Join("..", "..", "..", "config", "crds"),
+		},
 	}
+
+	configv1.AddToScheme(scheme.Scheme)
 
 	cfg, err := testEnv.Start()
 	if err != nil {
