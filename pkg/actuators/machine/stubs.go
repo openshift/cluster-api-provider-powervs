@@ -39,7 +39,7 @@ func stubPowerVSCredentialsSecret(name string) *corev1.Secret {
 			Namespace: defaultNamespace,
 		},
 		Data: map[string][]byte{
-			"IBMCLOUD_API_KEY": []byte("Kl9k1elFgPb_QgEDF0d5iNHMOFa--YX6JWLpi0XkWn"),
+			"ibmcloud_api_key": []byte("Kl9k1elFgPb_QgEDF0d5iNHMOFa--YX6JWLpi0XkWn"),
 		},
 	}
 }

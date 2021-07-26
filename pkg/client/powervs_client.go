@@ -66,8 +66,8 @@ type PowerVSClientBuilderFuncType func(client client.Client, secretName, namespa
 
 func apiKeyFromSecret(secret *corev1.Secret) (apiKey string, err error) {
 	switch {
-	case len(secret.Data["IBMCLOUD_API_KEY"]) > 0:
-		apiKey = string(secret.Data["IBMCLOUD_API_KEY"])
+	case len(secret.Data["ibmcloud_api_key"]) > 0:
+		apiKey = string(secret.Data["ibmcloud_api_key"])
 	default:
 		return "", fmt.Errorf("invalid secret for powervs credentials")
 	}

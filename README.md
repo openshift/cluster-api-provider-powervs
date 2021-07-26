@@ -41,7 +41,7 @@ Note: this info is RH only, it needs to be backported every time the `README.md`
      namespace: openshift-machine-api
    type: Opaque
    data:
-     IBMCLOUD_API_KEY: FILLIN
+     ibmcloud_api_key: FILLIN
    ```
 
    You can use `examples/render-powervs-secrets.sh` script to generate the secret:
