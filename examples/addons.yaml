@@ -5,4 +5,4 @@ metadata:
   namespace: openshift-machine-api
 type: Opaque
 data:
-  IBMCLOUD_API_KEY:
+  ibmcloud_api_key:

@@ -14,5 +14,5 @@ fi
 
 x=$(echo -n "$IBMCLOUD_API_KEY" | base64)
 
-sed -e "s/IBMCLOUD_API_KEY:.*/IBMCLOUD_API_KEY: $x/" \
+sed -e "s/ibmcloud_api_key:.*/ibmcloud_api_key: $x/" \
     "$1"
