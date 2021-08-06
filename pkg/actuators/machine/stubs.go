@@ -15,7 +15,7 @@ import (
 
 const (
 	defaultNamespace      = "default"
-	credentialsSecretName = "powervs-credentials-secret"
+	credentialsSecretName = "powervs-credentials"
 	userDataSecretName    = "powervs-actuator-user-data-secret"
 	nameLength            = 5
 )

@@ -37,7 +37,7 @@ const (
 	//DefaultCredentialNamespace is the default namespace used to create a client object
 	DefaultCredentialNamespace = "openshift-machine-api"
 	//DefaultCredentialSecret is the credential secret name used by node update controller to fetch API key
-	DefaultCredentialSecret = "powervs-credentials-secret"
+	DefaultCredentialSecret = "powervs-credentials"
 
 	//InstanceStateNameShutoff is indicates the shutoff state of Power VS instance
 	InstanceStateNameShutoff = "SHUTOFF"

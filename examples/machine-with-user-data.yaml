@@ -16,7 +16,7 @@ spec:
       userDataSecret:
         name: worker-user-data
       credentialsSecret:
-        name: powervs-credentials-secret
+        name: powervs-credentials
       sysType: s922
       procType: shared
       processors: 0.25

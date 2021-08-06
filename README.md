@@ -37,7 +37,7 @@ Note: this info is RH only, it needs to be backported every time the `README.md`
    apiVersion: v1
    kind: Secret
    metadata:
-     name: powervs-credentials-secret
+     name: powervs-credentials
      namespace: openshift-machine-api
    type: Opaque
    data:
