@@ -54,7 +54,7 @@ ifeq ($(NO_DOCKER), 1)
   IMAGE_BUILD_CMD = imagebuilder
   CGO_ENABLED = 1
 else
-  DOCKER_CMD := $(ENGINE) run --rm -e CGO_ENABLED=1 -v "$(PWD)":/go/src/github.com/openshift/cluster-api-provider-powervs:Z -w /go/src/github.com/openshift/cluster-api-provider-powervs openshift/origin-release:golang-1.15
+  DOCKER_CMD := $(ENGINE) run --rm -e CGO_ENABLED=1 -v "$(PWD)":/go/src/github.com/openshift/cluster-api-provider-powervs:Z -w /go/src/github.com/openshift/cluster-api-provider-powervs openshift/origin-release:golang-1.16
   IMAGE_BUILD_CMD = $(ENGINE) build
 endif
 
