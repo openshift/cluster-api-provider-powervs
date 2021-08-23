@@ -57,7 +57,7 @@ var (
 
 //FormatProviderID formats and returns the provided instanceID
 func FormatProviderID(instanceID string) string {
-	return fmt.Sprintf("powervs:///%s", instanceID)
+	return fmt.Sprintf("ibmpowervs:///%s", instanceID)
 }
 
 //PowerVSClientBuilderFuncType is function type for building the Power VS client
