@@ -171,7 +171,7 @@ func (r *providerIDReconciler) getInstances(serviceInstance bluemixmodels.Servic
 	var result serviceInstanceResult
 	var instance *models.PVMInstanceReference
 	cl, err := powervsclient.NewValidatedClient(r.client, powervsclient.DefaultCredentialSecret,
-		powervsclient.DefaultCredentialNamespace, serviceInstance.Guid, "", debug)
+		powervsclient.DefaultCredentialNamespace, serviceInstance.Guid, debug)
 	if err != nil {
 		result = serviceInstanceResult{
 			err: fmt.Errorf("%s: failed to create NewValidatedClient, with error: %v", nodeName, err),

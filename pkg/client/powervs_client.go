@@ -16,18 +16,19 @@ import (
 	bxsession "github.com/IBM-Cloud/bluemix-go/session"
 	"github.com/IBM-Cloud/power-go-client/clients/instance"
 	"github.com/IBM-Cloud/power-go-client/ibmpisession"
+	"github.com/IBM-Cloud/power-go-client/power/client/p_cloud_networks"
 	"github.com/IBM-Cloud/power-go-client/power/client/p_cloud_p_vm_instances"
 	"github.com/IBM-Cloud/power-go-client/power/models"
-	"github.com/IBM/go-sdk-core/v4/core"
-	"github.com/IBM/vpc-go-sdk/vpcv1"
 
 	"github.com/dgrijalva/jwt-go"
-	machineapiapierrors "github.com/openshift/machine-api-operator/pkg/controller/machine"
 	"github.com/pkg/errors"
 	utils "github.com/ppc64le-cloud/powervs-utils"
+
 	corev1 "k8s.io/api/core/v1"
 	apimachineryerrors "k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	machineapiapierrors "github.com/openshift/machine-api-operator/pkg/controller/machine"
 )
 
 const (
@@ -50,6 +51,8 @@ const (
 	PowerServiceType = "power-iaas"
 )
 
+var _ Client = &powerVSClient{}
+
 var (
 	//ErrorInstanceNotFound is error type for Instance Not Found
 	ErrorInstanceNotFound = errors.New("instance Not Found")
@@ -61,7 +64,7 @@ func FormatProviderID(instanceID string) string {
 }
 
 //PowerVSClientBuilderFuncType is function type for building the Power VS client
-type PowerVSClientBuilderFuncType func(client client.Client, secretName, namespace, cloudInstanceID, region string,
+type PowerVSClientBuilderFuncType func(client client.Client, secretName, namespace, cloudInstanceID string,
 	debug bool) (Client, error)
 
 func apiKeyFromSecret(secret *corev1.Secret) (apiKey string, err error) {
@@ -93,18 +96,8 @@ func GetAPIKey(ctrlRuntimeClient client.Client, secretName, namespace string) (a
 	return
 }
 
-// getServiceURL returns the appropriate service URL for the VPC for given region or error
-func getServiceURL(region string) (string, error) {
-	switch region {
-	case "us-south", "us-east", "eu-gb", "eu-de", "au-syd", "jp-tok", "jp-osa", "ca-tor":
-		return fmt.Sprintf("https://%s.iaas.cloud.ibm.com/v1", region), nil
-	default:
-		return "", fmt.Errorf("invalid region: %s", region)
-	}
-}
-
 //NewValidatedClient creates and return a new Power VS client
-func NewValidatedClient(ctrlRuntimeClient client.Client, secretName, namespace, cloudInstanceID, region string,
+func NewValidatedClient(ctrlRuntimeClient client.Client, secretName, namespace, cloudInstanceID string,
 	debug bool) (Client, error) {
 	apikey, err := GetAPIKey(ctrlRuntimeClient, secretName, namespace)
 	if err != nil {
@@ -116,31 +109,9 @@ func NewValidatedClient(ctrlRuntimeClient client.Client, secretName, namespace, 
 		return nil, err
 	}
 
-	// Set the region as us-south if not set
-	if region == "" {
-		region = "us-south"
-	}
-
-	url, err := getServiceURL(region)
-	if err != nil {
-		return nil, err
-	}
-
-	vpcClient, err := vpcv1.NewVpcV1(&vpcv1.VpcV1Options{
-		Authenticator: &core.IamAuthenticator{
-			ApiKey: apikey,
-		},
-		URL: url,
-	})
-
-	if err != nil {
-		return nil, err
-	}
-
 	c := &powerVSClient{
 		cloudInstanceID: cloudInstanceID,
 		Session:         s,
-		VPCClient:       vpcClient,
 	}
 
 	err = authenticateAPIKey(s)
@@ -177,6 +148,7 @@ func NewValidatedClient(ctrlRuntimeClient client.Client, secretName, namespace, 
 
 	c.InstanceClient = instance.NewIBMPIInstanceClient(c.session, cloudInstanceID)
 	c.NetworkClient = instance.NewIBMPINetworkClient(c.session, cloudInstanceID)
+	c.ImageClient = instance.NewIBMPIImageClient(c.session, cloudInstanceID)
 	return c, err
 }
 
@@ -207,12 +179,26 @@ type powerVSClient struct {
 	cloudInstanceID string
 
 	*bxsession.Session
-	VPCClient      *vpcv1.VpcV1
 	User           *User
 	ResourceClient controllerv2.ResourceServiceInstanceRepository
 	session        *ibmpisession.IBMPISession
 	InstanceClient *instance.IBMPIInstanceClient
 	NetworkClient  *instance.IBMPINetworkClient
+	ImageClient    *instance.IBMPIImageClient
+}
+
+func (p *powerVSClient) GetImages() (*models.Images, error) {
+	return p.ImageClient.GetAll(p.cloudInstanceID)
+}
+
+func (p *powerVSClient) GetNetworks() (*models.Networks, error) {
+	params := p_cloud_networks.NewPcloudNetworksGetallParamsWithTimeout(TIMEOUT).WithCloudInstanceID(p.cloudInstanceID)
+	resp, err := p.session.Power.PCloudNetworks.PcloudNetworksGetall(params, ibmpisession.NewAuth(p.session, p.cloudInstanceID))
+
+	if err != nil || resp.Payload == nil {
+		return nil, err
+	}
+	return resp.Payload, nil
 }
 
 func (p *powerVSClient) DeleteInstance(id string) error {

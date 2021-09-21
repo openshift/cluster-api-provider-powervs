@@ -123,6 +123,8 @@ func TestLaunchInstance(t *testing.T) {
 			//Setup the mocks
 			mockPowerVSClient.EXPECT().CreateInstance(gomock.Any()).Return(stubGetInstances(), tc.createInstanceErr)
 			mockPowerVSClient.EXPECT().GetInstance(gomock.Any()).Return(stubGetInstance(), tc.instancesErr)
+			mockPowerVSClient.EXPECT().GetImages().Return(stubGetImages(imageNamePrefix, 3), nil)
+			mockPowerVSClient.EXPECT().GetNetworks().Return(stubGetNetworks(networkNamePrefix, 3), nil)
 
 			_, launchErr := launchInstance(machine, providerConfig, nil, mockPowerVSClient)
 			t.Log(launchErr)

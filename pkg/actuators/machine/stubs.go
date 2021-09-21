@@ -2,12 +2,14 @@ package machine
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/IBM-Cloud/power-go-client/power/models"
-	"k8s.io/apimachinery/pkg/util/rand"
+	"github.com/IBM/go-sdk-core/v5/core"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/rand"
 
 	"github.com/openshift/cluster-api-provider-powervs/pkg/apis/powervsprovider/v1alpha1"
 	machinev1 "github.com/openshift/machine-api-operator/pkg/apis/machine/v1beta1"
@@ -18,6 +20,8 @@ const (
 	credentialsSecretName = "powervs-credentials"
 	userDataSecretName    = "powervs-actuator-user-data-secret"
 	nameLength            = 5
+	imageNamePrefix       = "test-image"
+	networkNamePrefix     = "test-network"
 )
 
 func stubUserDataSecret(name string) *corev1.Secret {
@@ -75,7 +79,13 @@ func stubProviderConfig(name string) *v1alpha1.PowerVSMachineProviderConfig {
 		},
 		Memory:      "32",
 		Processors:  "0.5",
-		KeyPairName: &testKeyPair,
+		KeyPairName: testKeyPair,
+		Image: v1alpha1.PowerVSResourceReference{
+			Name: core.StringPtr(imageNamePrefix + "-1"),
+		},
+		Network: v1alpha1.PowerVSResourceReference{
+			Name: core.StringPtr(networkNamePrefix + "-1"),
+		},
 	}
 }
 
@@ -90,4 +100,32 @@ func stubGetInstance() *models.PVMInstance {
 		PvmInstanceID: &dummyInstanceID,
 		Status:        &status,
 	}
+}
+
+func stubGetImages(nameprefix string, count int) *models.Images {
+	images := &models.Images{
+		Images: []*models.ImageReference{},
+	}
+	for i := 0; i < count; i++ {
+		images.Images = append(images.Images,
+			&models.ImageReference{
+				Name:    core.StringPtr(nameprefix + "-" + strconv.Itoa(i)),
+				ImageID: core.StringPtr("ID-" + nameprefix + "-" + strconv.Itoa(i)),
+			})
+	}
+	return images
+}
+
+func stubGetNetworks(nameprefix string, count int) *models.Networks {
+	images := &models.Networks{
+		Networks: []*models.NetworkReference{},
+	}
+	for i := 0; i < count; i++ {
+		images.Networks = append(images.Networks,
+			&models.NetworkReference{
+				Name:      core.StringPtr(nameprefix + "-" + strconv.Itoa(i)),
+				NetworkID: core.StringPtr("ID-" + nameprefix + "-" + strconv.Itoa(i)),
+			})
+	}
+	return images
 }

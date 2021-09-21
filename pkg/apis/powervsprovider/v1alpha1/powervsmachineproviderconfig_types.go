@@ -32,18 +32,11 @@ type PowerVSMachineProviderConfig struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	// Region for VPC client for load balancer
-	Region string `json:"region,omitempty"`
-
-	// LoadBalancers is the set of load balancers to which the new instance
-	// should be added once it is created.
-	LoadBalancers []LoadBalancerReference `json:"loadBalancers,omitempty"`
-
 	// ServiceInstanceID is the PowerVS service ID
 	ServiceInstanceID string `json:"serviceInstanceID"`
 
-	// ImageID is the Image ID used for deploying the machine
-	ImageID string `json:"imageID"`
+	// Image is the reference to the Image from which to create the machine instance.
+	Image PowerVSResourceReference `json:"image"`
 
 	// UserDataSecret is the k8s secret contains the user data script
 	UserDataSecret *corev1.LocalObjectReference `json:"userDataSecret,omitempty"`
@@ -63,23 +56,24 @@ type PowerVSMachineProviderConfig struct {
 	// Memory is Amount of memory allocated (in GB)
 	Memory string `json:"memory"`
 
-	// NetworkIDs is an array of network to be attached to the machine
-	NetworkIDs []string `json:"networkIDs"`
+	// Network is the reference to the Network to use for this instance.
+	Network PowerVSResourceReference `json:"network"`
 
 	// KeyPairName is the name of the SSH key pair provided to the server for authenticating users
-	KeyPairName *string `json:"keyPairName,omitempty"`
+	KeyPairName string `json:"keyPairName,omitempty"`
 }
 
-// LoadBalancerReference is a reference to a load balancer on PowerVS.
-type LoadBalancerReference struct {
-	// The load balancer identifier.
-	ID string `json:"id"`
+// PowerVSResourceReference is a reference to a specific PowerVS resource by ID or Name
+// Only one of ID or Name may be specified. Specifying more than one will result in
+// a validation error.
+type PowerVSResourceReference struct {
+	// ID of resource
+	// +optional
+	ID *string `json:"id,omitempty"`
 
-	// The pool identifier.
-	PoolID string `json:"poolID"`
-
-	// The port number of the application running in the server member(machine)
-	Port int64 `json:"port"`
+	// Name of resource
+	// +optional
+	Name *string `json:"name,omitempty"`
 }
 
 //+kubebuilder:object:root=true

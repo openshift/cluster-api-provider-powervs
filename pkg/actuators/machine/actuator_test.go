@@ -177,8 +177,8 @@ func TestActuatorEvents(t *testing.T) {
 			mockCtrl := gomock.NewController(t)
 			mockPowerVSClient := mock.NewMockClient(mockCtrl)
 
-			powerVSClientBuilder := func(client client.Client, secretName, namespace, cloudInstanceID,
-				region string, debug bool) (powervsClient.Client, error) {
+			powerVSClientBuilder := func(client client.Client, secretName, namespace, cloudInstanceID string,
+				debug bool) (powervsClient.Client, error) {
 				return mockPowerVSClient, nil
 			}
 
@@ -186,6 +186,8 @@ func TestActuatorEvents(t *testing.T) {
 			mockPowerVSClient.EXPECT().GetInstanceByName(machine.GetName()).Return(stubGetInstance(), nil)
 			mockPowerVSClient.EXPECT().CreateInstance(gomock.Any()).Return(stubGetInstances(), nil)
 			mockPowerVSClient.EXPECT().GetInstance(gomock.Any()).Return(stubGetInstance(), nil)
+			mockPowerVSClient.EXPECT().GetImages().Return(stubGetImages(imageNamePrefix, 3), nil)
+			mockPowerVSClient.EXPECT().GetNetworks().Return(stubGetNetworks(networkNamePrefix, 3), nil)
 			mockPowerVSClient.EXPECT().DeleteInstance(gomock.Any()).Return(nil)
 
 			params := ActuatorParams{
@@ -250,8 +252,8 @@ func TestActuatorExists(t *testing.T) {
 			mockCtrl := gomock.NewController(t)
 			mockPowerVSClient := mock.NewMockClient(mockCtrl)
 
-			powerVSClientBuilder := func(client client.Client, secretName, namespace, cloudInstanceID,
-				region string, debug bool) (powervsClient.Client, error) {
+			powerVSClientBuilder := func(client client.Client, secretName, namespace, cloudInstanceID string,
+				debug bool) (powervsClient.Client, error) {
 				return mockPowerVSClient, nil
 			}
 

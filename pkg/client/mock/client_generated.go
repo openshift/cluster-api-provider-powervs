@@ -110,6 +110,36 @@ func (mr *MockClientMockRecorder) DeleteInstance(id interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteInstance", reflect.TypeOf((*MockClient)(nil).DeleteInstance), id)
 }
 
+// GetImages mocks base method
+func (m *MockClient) GetImages() (*models0.Images, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetImages")
+	ret0, _ := ret[0].(*models0.Images)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetImages indicates an expected call of GetImages
+func (mr *MockClientMockRecorder) GetImages() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetImages", reflect.TypeOf((*MockClient)(nil).GetImages))
+}
+
+// GetNetworks mocks base method
+func (m *MockClient) GetNetworks() (*models0.Networks, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetNetworks")
+	ret0, _ := ret[0].(*models0.Networks)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetNetworks indicates an expected call of GetNetworks
+func (mr *MockClientMockRecorder) GetNetworks() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetNetworks", reflect.TypeOf((*MockClient)(nil).GetNetworks))
+}
+
 // GetCloudServiceInstances mocks base method
 func (m *MockClient) GetCloudServiceInstances() ([]models.ServiceInstanceV2, error) {
 	m.ctrl.T.Helper()
