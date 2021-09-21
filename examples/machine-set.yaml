@@ -23,7 +23,8 @@ spec:
           apiVersion: powervsproviderconfig.openshift.io/v1alpha1
           kind: PowerVSMachineProviderConfig
           serviceInstanceID: e449d86e-c3a0-4c07-959e-8557fdf55482
-          imageID: 45473216-7e3a-4711-8c14-28ada40a8de1
+          image:
+            name: rhcos-49-84-202108041519-0
           userDataSecret:
             name: worker-user-data
           credentialsSecret:
@@ -32,6 +33,6 @@ spec:
           procType: shared
           processors: 0.25
           memory: 8
-          networkIDs:
-            - daf2b616-542b-47ed-8cec-ceaec1e90f4d
+          network:
+            name: pvs-ipi-net
           keyPairName: karthik-ssh

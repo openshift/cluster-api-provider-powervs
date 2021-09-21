@@ -107,8 +107,8 @@ func TestGetMachineInstances(t *testing.T) {
 			machineScope, err := newMachineScope(machineScopeParams{
 				client:  fakeClient,
 				machine: machineCopy,
-				powerVSClientBuilder: func(client runtimeclient.Client, secretName, namespace, cloudInstanceID,
-					region string, debug bool) (client.Client, error) {
+				powerVSClientBuilder: func(client runtimeclient.Client, secretName, namespace, cloudInstanceID string,
+					debug bool) (client.Client, error) {
 					return mockPowerVSClient, nil
 				},
 			})
@@ -156,6 +156,8 @@ func TestCreate(t *testing.T) {
 	mockPowerVSClient.EXPECT().CreateInstance(gomock.Any()).Return(stubGetInstances(), nil)
 	mockPowerVSClient.EXPECT().GetInstance(gomock.Any()).Return(stubGetInstance(), nil)
 	mockPowerVSClient.EXPECT().DeleteInstance(gomock.Any()).Return(nil)
+	mockPowerVSClient.EXPECT().GetImages().Return(stubGetImages(imageNamePrefix, 3), nil)
+	mockPowerVSClient.EXPECT().GetNetworks().Return(stubGetNetworks(networkNamePrefix, 3), nil)
 
 	credSecretName := fmt.Sprintf("%s-%s", credentialsSecretName, rand.String(nameLength))
 	userSecretName := fmt.Sprintf("%s-%s", userDataSecretName, rand.String(nameLength))
@@ -193,8 +195,8 @@ func TestCreate(t *testing.T) {
 		machineScope, err := newMachineScope(machineScopeParams{
 			client:  fakeClient,
 			machine: machine,
-			powerVSClientBuilder: func(client runtimeclient.Client, secretName, namespace, cloudInstanceID,
-				region string, debug bool) (client.Client, error) {
+			powerVSClientBuilder: func(client runtimeclient.Client, secretName, namespace, cloudInstanceID string,
+				debug bool) (client.Client, error) {
 				return mockPowerVSClient, nil
 			},
 		})
@@ -232,8 +234,8 @@ func TestExists(t *testing.T) {
 	machineScope, err := newMachineScope(machineScopeParams{
 		client:  fakeClient,
 		machine: &machinev1beta1.Machine{},
-		powerVSClientBuilder: func(client runtimeclient.Client, secretName, namespace, cloudInstanceID,
-			region string, debug bool) (client.Client, error) {
+		powerVSClientBuilder: func(client runtimeclient.Client, secretName, namespace, cloudInstanceID string,
+			debug bool) (client.Client, error) {
 			return mockPowerVSClient, nil
 		},
 	})
@@ -258,8 +260,8 @@ func TestDelete(t *testing.T) {
 	machineScope, err := newMachineScope(machineScopeParams{
 		client:  fakeClient,
 		machine: &machinev1beta1.Machine{},
-		powerVSClientBuilder: func(client runtimeclient.Client, secretName, namespace, cloudInstanceID,
-			region string, debug bool) (client.Client, error) {
+		powerVSClientBuilder: func(client runtimeclient.Client, secretName, namespace, cloudInstanceID string,
+			debug bool) (client.Client, error) {
 			return mockPowerVSClient, nil
 		},
 	})

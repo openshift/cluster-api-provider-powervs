@@ -70,7 +70,7 @@ func newMachineScope(params machineScopeParams) (*machineScope, error) {
 	debug := enableDebugMode()
 
 	powerVSClient, err := params.powerVSClientBuilder(params.client, credentialsSecretName, params.machine.Namespace,
-		providerSpec.ServiceInstanceID, providerSpec.Region, debug)
+		providerSpec.ServiceInstanceID, debug)
 	if err != nil {
 		return nil, machineapierros.InvalidMachineConfiguration("failed to create powervs client: %v", err.Error())
 	}

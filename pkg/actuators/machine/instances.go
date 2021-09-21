@@ -43,16 +43,24 @@ func launchInstance(machine *machinev1.Machine, machineProviderConfig *powervspr
 		return nil, mapierrors.InvalidMachineConfiguration("failed to convert Cores(%s) to float64", machineProviderConfig.Processors)
 	}
 
-	var nets []*models.PVMInstanceAddNetwork
+	imageID, err := getImageID(machineProviderConfig.Image, client)
+	if err != nil {
+		return nil, mapierrors.InvalidMachineConfiguration("error getting image ID: %v", err)
+	}
 
-	for _, net := range machineProviderConfig.NetworkIDs {
-		nets = append(nets, &models.PVMInstanceAddNetwork{NetworkID: &net})
+	networkID, err := getNetworkID(machineProviderConfig.Network, client)
+	if err != nil {
+		return nil, mapierrors.InvalidMachineConfiguration("error getting network ID: %v", err)
+	}
+
+	var nets = []*models.PVMInstanceAddNetwork{
+		{NetworkID: networkID},
 	}
 
 	params := &p_cloud_p_vm_instances.PcloudPvminstancesPostParams{
 		Body: &models.PVMInstanceCreate{
-			ImageID:     &machineProviderConfig.ImageID,
-			KeyPairName: *machineProviderConfig.KeyPairName,
+			ImageID:     imageID,
+			KeyPairName: machineProviderConfig.KeyPairName,
 			Networks:    nets,
 			ServerName:  &machine.Name,
 			Memory:      &memory,
@@ -82,4 +90,47 @@ func launchInstance(machine *machinev1.Machine, machineProviderConfig *powervspr
 		return nil, mapierrors.CreateMachine("error getting the instance for ID: %s", insIDs[0])
 	}
 	return instance, nil
+}
+
+func getImageID(image powervsproviderv1.PowerVSResourceReference, client powervsclient.Client) (*string, error) {
+	if image.ID != nil {
+		return image.ID, nil
+	} else if image.Name != nil {
+		images, err := client.GetImages()
+		if err != nil {
+			klog.Errorf("failed to get images, err: %v", err)
+			return nil, err
+		}
+		for _, img := range images.Images {
+			if *image.Name == *img.Name {
+				klog.Infof("image %s found with ID: %s", *image.Name, *img.ImageID)
+				return img.ImageID, nil
+			}
+		}
+	} else {
+		return nil, fmt.Errorf("both ID and Name can't be nil")
+	}
+	return nil, fmt.Errorf("failed to find an image ID")
+}
+
+func getNetworkID(network powervsproviderv1.PowerVSResourceReference, client powervsclient.Client) (*string, error) {
+	if network.ID != nil {
+		return network.ID, nil
+	} else if network.Name != nil {
+		networks, err := client.GetNetworks()
+		if err != nil {
+			klog.Errorf("failed to get networks, err: %v", err)
+			return nil, err
+		}
+		for _, nw := range networks.Networks {
+			if *network.Name == *nw.Name {
+				klog.Infof("network %s found with ID: %s", *network.Name, *nw.NetworkID)
+				return nw.NetworkID, nil
+			}
+		}
+	} else {
+		return nil, fmt.Errorf("both ID and Name can't be nil")
+	}
+
+	return nil, fmt.Errorf("failed to find a network ID")
 }

@@ -65,7 +65,7 @@ func TestNewMachineScope(t *testing.T) {
 			params: machineScopeParams{
 				client: fakeClient,
 				powerVSClientBuilder: func(client client.Client, secretName, namespace,
-					cloudInstanceID, region string, debug bool) (powervsClient.Client, error) {
+					cloudInstanceID string, debug bool) (powervsClient.Client, error) {
 					return nil, nil
 				},
 				machine: &machinev1.Machine{
@@ -88,7 +88,7 @@ func TestNewMachineScope(t *testing.T) {
 			params: machineScopeParams{
 				client: fakeClient,
 				powerVSClientBuilder: func(client client.Client, secretName, namespace,
-					cloudInstanceID, region string, debug bool) (powervsClient.Client, error) {
+					cloudInstanceID string, debug bool) (powervsClient.Client, error) {
 					return nil, nil
 				},
 				machine: &machinev1.Machine{
@@ -114,7 +114,7 @@ func TestNewMachineScope(t *testing.T) {
 			params: machineScopeParams{
 				client: fakeClient,
 				powerVSClientBuilder: func(client client.Client, secretName, namespace,
-					cloudInstanceID, region string, debug bool) (powervsClient.Client, error) {
+					cloudInstanceID string, debug bool) (powervsClient.Client, error) {
 					return nil, nil
 				},
 				machine: &machinev1.Machine{
@@ -357,8 +357,8 @@ func TestPatchMachine(t *testing.T) {
 			machineScope, err := newMachineScope(machineScopeParams{
 				client:  k8sClient,
 				machine: machine,
-				powerVSClientBuilder: func(client client.Client, secretName, namespace, cloudInstanceID,
-					region string, debug bool) (powervsClient.Client, error) {
+				powerVSClientBuilder: func(client client.Client, secretName, namespace, cloudInstanceID string,
+					debug bool) (powervsClient.Client, error) {
 					return nil, nil
 				},
 			})
