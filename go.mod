@@ -5,8 +5,9 @@ go 1.15
 require (
 	github.com/IBM-Cloud/bluemix-go v0.0.0-20200921095234-26d1d0148c62
 	github.com/IBM-Cloud/power-go-client v1.0.72
-	github.com/IBM/go-sdk-core/v4 v4.5.1
-	github.com/IBM/vpc-go-sdk v1.0.1
+	github.com/IBM/go-sdk-core/v4 v4.5.1 // indirect
+	github.com/IBM/go-sdk-core/v5 v5.2.0
+	github.com/IBM/vpc-go-sdk v1.0.1 // indirect
 	github.com/blang/semver v3.5.1+incompatible
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/golang/mock v1.4.4

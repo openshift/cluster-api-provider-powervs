@@ -54,13 +54,11 @@ github.com/IBM-Cloud/power-go-client/power/models
 github.com/IBM-Cloud/power-go-client/utils
 # github.com/IBM/go-sdk-core/v4 v4.5.1
 ## explicit
-github.com/IBM/go-sdk-core/v4/core
 # github.com/IBM/go-sdk-core/v5 v5.2.0
+## explicit
 github.com/IBM/go-sdk-core/v5/core
 # github.com/IBM/vpc-go-sdk v1.0.1
 ## explicit
-github.com/IBM/vpc-go-sdk/common
-github.com/IBM/vpc-go-sdk/vpcv1
 # github.com/MakeNowJust/heredoc v0.0.0-20170808103936-bb23615498cd
 github.com/MakeNowJust/heredoc
 # github.com/PuerkitoBio/purell v1.1.1
