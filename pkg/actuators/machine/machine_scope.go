@@ -171,6 +171,11 @@ func (s *machineScope) setProviderStatus(instance *models.PVMInstance, condition
 					})
 			}
 		}
+		networkAddresses = append(networkAddresses,
+			corev1.NodeAddress{
+				Type:    corev1.NodeInternalDNS,
+				Address: *instance.ServerName,
+			})
 	}
 	klog.Infof("%s: finished calculating PowerVS status", s.machine.Name)
 

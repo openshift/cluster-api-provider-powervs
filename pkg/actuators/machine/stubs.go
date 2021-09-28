@@ -99,6 +99,7 @@ func stubGetInstance() *models.PVMInstance {
 	return &models.PVMInstance{
 		PvmInstanceID: &dummyInstanceID,
 		Status:        &status,
+		ServerName:    core.StringPtr("instance"),
 	}
 }
 
