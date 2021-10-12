@@ -52,9 +52,8 @@ endif
 ifeq ($(NO_DOCKER), 1)
   DOCKER_CMD =
   IMAGE_BUILD_CMD = imagebuilder
-  CGO_ENABLED = 1
 else
-  DOCKER_CMD := $(ENGINE) run --rm -e CGO_ENABLED=1 -v "$(PWD)":/go/src/github.com/openshift/cluster-api-provider-powervs:Z -w /go/src/github.com/openshift/cluster-api-provider-powervs openshift/origin-release:golang-1.16
+  DOCKER_CMD := $(ENGINE) run --rm -v "$(PWD)":/go/src/github.com/openshift/cluster-api-provider-powervs:Z -w /go/src/github.com/openshift/cluster-api-provider-powervs openshift/origin-release:golang-1.16
   IMAGE_BUILD_CMD = $(ENGINE) build
 endif
 
@@ -80,7 +79,7 @@ bin:
 
 .PHONY: build
 build: ## build binaries
-	$(DOCKER_CMD) go build $(GOGCFLAGS) -o "bin/machine-controller-manager" \
+	$(DOCKER_CMD) CGO_ENABLED=0 go build $(GOGCFLAGS) -o "bin/machine-controller-manager" \
                -ldflags "$(LD_FLAGS)" "$(REPO_PATH)/cmd/manager"
 
 .PHONY: images
