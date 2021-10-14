@@ -5,19 +5,20 @@ import (
 	"fmt"
 
 	"github.com/IBM-Cloud/power-go-client/power/models"
-	powervsproviderv1 "github.com/openshift/cluster-api-provider-powervs/pkg/apis/powervsprovider/v1alpha1"
 
-	powervsclient "github.com/openshift/cluster-api-provider-powervs/pkg/client"
-	machinev1 "github.com/openshift/machine-api-operator/pkg/apis/machine/v1beta1"
-	machineapierros "github.com/openshift/machine-api-operator/pkg/controller/machine"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/klog/v2"
 	runtimeclient "sigs.k8s.io/controller-runtime/pkg/client"
+
+	powervsproviderv1 "github.com/openshift/cluster-api-provider-powervs/pkg/apis/powervsprovider/v1alpha1"
+	powervsclient "github.com/openshift/cluster-api-provider-powervs/pkg/client"
+	"github.com/openshift/cluster-api-provider-powervs/pkg/options"
+	machinev1 "github.com/openshift/machine-api-operator/pkg/apis/machine/v1beta1"
+	machineapierros "github.com/openshift/machine-api-operator/pkg/controller/machine"
 )
 
 const (
 	userDataSecretKey = "userData"
-	debugLevel        = 6
 )
 
 // dhcpDomainKeyName is a variable so we can reference it in unit tests.
@@ -67,10 +68,8 @@ func newMachineScope(params machineScopeParams) (*machineScope, error) {
 		credentialsSecretName = providerSpec.CredentialsSecret.Name
 	}
 
-	debug := enableDebugMode()
-
 	powerVSClient, err := params.powerVSClientBuilder(params.client, credentialsSecretName, params.machine.Namespace,
-		providerSpec.ServiceInstanceID, debug)
+		providerSpec.ServiceInstanceID, options.GetDebugMode())
 	if err != nil {
 		return nil, machineapierros.InvalidMachineConfiguration("failed to create powervs client: %v", err.Error())
 	}
@@ -181,8 +180,4 @@ func (s *machineScope) setProviderStatus(instance *models.PVMInstance, condition
 
 	s.machine.Status.Addresses = networkAddresses
 	s.providerStatus.Conditions = setPowerVSMachineProviderCondition(condition, s.providerStatus.Conditions)
-}
-
-func enableDebugMode() bool {
-	return klog.V(debugLevel).Enabled()
 }

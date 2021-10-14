@@ -20,6 +20,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	powervsclient "github.com/openshift/cluster-api-provider-powervs/pkg/client"
+	"github.com/openshift/cluster-api-provider-powervs/pkg/options"
 )
 
 const (
@@ -27,15 +28,10 @@ const (
 	requeueDurationWhenVMNotFound = 2 * time.Minute
 	//TODO: should this value be flag driven
 	concurrencyLimit = 5
-
-	//debugLevel helps in enabling the debug while creating a Power VS client
-	debugLevel = 6
 )
 
 var (
-	_           reconcile.Reconciler = &providerIDReconciler{}
-	enableDebug bool
-	callOnce    sync.Once
+	_ reconcile.Reconciler = &providerIDReconciler{}
 )
 
 type providerIDReconciler struct {
@@ -67,9 +63,6 @@ func (r *providerIDReconciler) Reconcile(ctx context.Context, request reconcile.
 	if node.Spec.ProviderID != "" {
 		return reconcile.Result{}, nil
 	}
-
-	//call the getLogVerbosityLevel only once to set the value for global enableDebug variable
-	callOnce.Do(getLogVerbosityLevel)
 
 	klog.Infof("%s: ProviderID is not updated in the node - update it", node.Name)
 
@@ -103,7 +96,7 @@ func (r *providerIDReconciler) Reconcile(ctx context.Context, request reconcile.
 		//Get service instances
 		go func(serviceInstance bluemixmodels.ServiceInstanceV2) {
 			defer producerWg.Done()
-			r.getInstances(serviceInstance, node.Name, resultChan, concurrencyController, enableDebug)
+			r.getInstances(serviceInstance, node.Name, resultChan, concurrencyController, options.GetDebugMode())
 		}(i)
 
 		//Call only once in a loop and read the result channel to process the output
@@ -228,8 +221,4 @@ func newProviderIDReconciler(mgr manager.Manager) (*providerIDReconciler, error)
 		client: mgr.GetClient(),
 	}
 	return &r, nil
-}
-
-func getLogVerbosityLevel() {
-	enableDebug = klog.V(debugLevel).Enabled()
 }
