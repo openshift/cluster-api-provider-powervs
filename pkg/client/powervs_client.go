@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	gohttp "net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -28,6 +29,7 @@ import (
 	apimachineryerrors "k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	configv1 "github.com/openshift/api/config/v1"
 	machineapiapierrors "github.com/openshift/machine-api-operator/pkg/controller/machine"
 )
 
@@ -49,6 +51,12 @@ const (
 
 	//PowerServiceType is the power-iaas service type of IBM Cloud
 	PowerServiceType = "power-iaas"
+
+	// globalInfrastuctureName default name for infrastructure object
+	globalInfrastuctureName = "cluster"
+
+	//regionEnvironmentalVariable is the environmental variable to set the region
+	regionEnvironmentalVariable = "IBMCLOUD_REGION"
 )
 
 var _ Client = &powerVSClient{}
@@ -56,6 +64,13 @@ var _ Client = &powerVSClient{}
 var (
 	//ErrorInstanceNotFound is error type for Instance Not Found
 	ErrorInstanceNotFound = errors.New("instance Not Found")
+
+	//endPointKeyToEnvNameMap contains the endpoint key to corresponding environment variable name 	//TODO: Finalize the custom service key names
+	endPointKeyToEnvNameMap = map[string]string{
+		"iam": "IBMCLOUD_IAM_API_ENDPOINT",
+		"rc":  "IBMCLOUD_RESOURCE_CONTROLLER_API_ENDPOINT",
+		"pe":  "IBMCLOUD_POWER_API_ENDPOINT",
+	}
 )
 
 //FormatProviderID formats and returns the provided instanceID
@@ -104,6 +119,17 @@ func NewValidatedClient(ctrlRuntimeClient client.Client, secretName, namespace, 
 		return nil, err
 	}
 
+	customEndpointsMap, err := resolveEndpoints(ctrlRuntimeClient)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(customEndpointsMap) > 0 {
+		if err = setCustomEndpoints(customEndpointsMap, []string{"iam", "rc", "pe"}); err != nil {
+			return nil, err
+		}
+	}
+
 	s, err := bxsession.New(&bluemix.Config{BluemixAPIKey: apikey})
 	if err != nil {
 		return nil, err
@@ -139,6 +165,13 @@ func NewValidatedClient(ctrlRuntimeClient client.Client, secretName, namespace, 
 	if err != nil {
 		return nil, err
 	}
+
+	//Setting the region here so that corresponding power endpoint can be fetched from it
+	err = setEnvironmentVariables(regionEnvironmentalVariable, r)
+	if err != nil {
+		return nil, err
+	}
+
 	zone := resource.RegionID
 
 	c.session, err = ibmpisession.New(c.Config.IAMAccessToken, r, debug, time.Hour, c.User.Account, zone)
@@ -304,4 +337,50 @@ func fetchUserDetails(sess *bxsession.Session, generation int) (*User, error) {
 
 	user.generation = generation
 	return &user, nil
+}
+
+func resolveEndpoints(ctrlRuntimeClient client.Client) (map[string]string, error) {
+	infra := &configv1.Infrastructure{}
+	infraName := client.ObjectKey{Name: globalInfrastuctureName}
+
+	if err := ctrlRuntimeClient.Get(context.Background(), infraName, infra); err != nil {
+		return nil, err
+	}
+
+	// Do nothing when custom endpoints are missing
+	if infra.Status.PlatformStatus == nil || infra.Status.PlatformStatus.PowerVS == nil {
+		return nil, nil
+	}
+
+	return buildCustomEndpointsMap(infra.Status.PlatformStatus.PowerVS.ServiceEndpoints), nil
+}
+
+// buildCustomEndpointsMap constructs a map that links endpoint name and it's url
+func buildCustomEndpointsMap(customEndpoints []configv1.PowerVSServiceEndpoint) map[string]string {
+	customEndpointsMap := make(map[string]string)
+
+	for _, customEndpoint := range customEndpoints {
+		customEndpointsMap[customEndpoint.Name] = customEndpoint.URL
+	}
+
+	return customEndpointsMap
+}
+
+func setCustomEndpoints(customEndpointsMap map[string]string, keys []string) error {
+	//TODO(Doubt): Is it required to validate the endpoints again before setting it or blindly trust installer
+	for _, key := range keys {
+		if val, ok := customEndpointsMap[key]; ok {
+			if err := setEnvironmentVariables(endPointKeyToEnvNameMap[key], val); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func setEnvironmentVariables(key, val string) error {
+	if err := os.Setenv(key, val); err != nil {
+		return err
+	}
+	return nil
 }
