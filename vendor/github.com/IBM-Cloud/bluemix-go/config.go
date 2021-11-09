@@ -64,6 +64,8 @@ const (
 	UserManagement ServiceName = ServiceName("user-management")
 	//HPCService ...
 	HPCService ServiceName = ServiceName("hpcs")
+	//FunctionsService ...
+	FunctionsService ServiceName = ServiceName("functions")
 )
 
 //Config ...
@@ -97,7 +99,9 @@ type Config struct {
 
 	HTTPClient *http.Client
 
-	SSLDisable bool
+	SSLDisable    bool
+	Visibility    string
+	EndpointsFile string
 }
 
 //Copy allows the configuration to be overriden or added

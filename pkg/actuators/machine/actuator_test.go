@@ -18,10 +18,10 @@ import (
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	machinev1beta1 "github.com/openshift/api/machine/v1beta1"
 	"github.com/openshift/cluster-api-provider-powervs/pkg/apis/powervsprovider/v1alpha1"
 	powervsClient "github.com/openshift/cluster-api-provider-powervs/pkg/client"
 	"github.com/openshift/cluster-api-provider-powervs/pkg/client/mock"
-	machinev1beta1 "github.com/openshift/machine-api-operator/pkg/apis/machine/v1beta1"
 
 	. "github.com/onsi/gomega"
 )
@@ -183,12 +183,12 @@ func TestActuatorEvents(t *testing.T) {
 			}
 
 			//Setup the mocks
-			mockPowerVSClient.EXPECT().GetInstanceByName(machine.GetName()).Return(stubGetInstance(), nil)
-			mockPowerVSClient.EXPECT().CreateInstance(gomock.Any()).Return(stubGetInstances(), nil)
-			mockPowerVSClient.EXPECT().GetInstance(gomock.Any()).Return(stubGetInstance(), nil)
-			mockPowerVSClient.EXPECT().GetImages().Return(stubGetImages(imageNamePrefix, 3), nil)
-			mockPowerVSClient.EXPECT().GetNetworks().Return(stubGetNetworks(networkNamePrefix, 3), nil)
-			mockPowerVSClient.EXPECT().DeleteInstance(gomock.Any()).Return(nil)
+			mockPowerVSClient.EXPECT().GetInstanceByName(machine.GetName()).Return(stubGetInstance(), nil).AnyTimes()
+			mockPowerVSClient.EXPECT().CreateInstance(gomock.Any()).Return(stubGetInstances(), nil).AnyTimes()
+			mockPowerVSClient.EXPECT().GetInstance(gomock.Any()).Return(stubGetInstance(), nil).AnyTimes()
+			mockPowerVSClient.EXPECT().GetImages().Return(stubGetImages(imageNamePrefix, 3), nil).AnyTimes()
+			mockPowerVSClient.EXPECT().GetNetworks().Return(stubGetNetworks(networkNamePrefix, 3), nil).AnyTimes()
+			mockPowerVSClient.EXPECT().DeleteInstance(gomock.Any()).Return(nil).AnyTimes()
 
 			params := ActuatorParams{
 				Client:               k8sClient,
@@ -258,7 +258,7 @@ func TestActuatorExists(t *testing.T) {
 			}
 
 			//Setup the mocks
-			mockPowerVSClient.EXPECT().GetInstanceByName(machine.GetName()).Return(stubGetInstance(), nil)
+			mockPowerVSClient.EXPECT().GetInstanceByName(machine.GetName()).Return(stubGetInstance(), nil).AnyTimes()
 
 			params := ActuatorParams{
 				Client:               k8sClient,

@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/http/httputil"
 	"strconv"
 	"sync"
 	"time"
@@ -60,6 +61,9 @@ type CloudPakForDataAuthenticator struct {
 
 	// The cached token and expiration time.
 	tokenData *cp4dTokenData
+
+	// Mutex to make the tokenData field thread safe.
+	tokenDataMutex sync.Mutex
 }
 
 var cp4dRequestTokenMutex sync.Mutex
@@ -126,7 +130,7 @@ func newCloudPakForDataAuthenticatorFromMap(properties map[string]string) (*Clou
 }
 
 // AuthenticationType returns the authentication type for this authenticator.
-func (CloudPakForDataAuthenticator) AuthenticationType() string {
+func (*CloudPakForDataAuthenticator) AuthenticationType() string {
 	return AUTHTYPE_CP4D
 }
 
@@ -134,7 +138,7 @@ func (CloudPakForDataAuthenticator) AuthenticationType() string {
 //
 // Ensures the username, password, and url are not Nil. Additionally, ensures
 // they do not contain invalid characters.
-func (authenticator CloudPakForDataAuthenticator) Validate() error {
+func (authenticator *CloudPakForDataAuthenticator) Validate() error {
 
 	if authenticator.Username == "" {
 		return fmt.Errorf(ERRORMSG_PROP_MISSING, "Username")
@@ -161,7 +165,7 @@ func (authenticator CloudPakForDataAuthenticator) Validate() error {
 // 		Authorization: Bearer <bearer-token>
 //
 func (authenticator *CloudPakForDataAuthenticator) Authenticate(request *http.Request) error {
-	token, err := authenticator.getToken()
+	token, err := authenticator.GetToken()
 	if err != nil {
 		return err
 	}
@@ -170,37 +174,44 @@ func (authenticator *CloudPakForDataAuthenticator) Authenticate(request *http.Re
 	return nil
 }
 
-// getToken: returns an access token to be used in an Authorization header.
+// getTokenData returns the tokenData field from the authenticator.
+func (authenticator *CloudPakForDataAuthenticator) getTokenData() *cp4dTokenData {
+	authenticator.tokenDataMutex.Lock()
+	defer authenticator.tokenDataMutex.Unlock()
+
+	return authenticator.tokenData
+}
+
+// setTokenData sets the given cp4dTokenData to the tokenData field of the authenticator.
+func (authenticator *CloudPakForDataAuthenticator) setTokenData(tokenData *cp4dTokenData) {
+	authenticator.tokenDataMutex.Lock()
+	defer authenticator.tokenDataMutex.Unlock()
+
+	authenticator.tokenData = tokenData
+}
+
+// GetToken: returns an access token to be used in an Authorization header.
 // Whenever a new token is needed (when a token doesn't yet exist, needs to be refreshed,
 // or the existing token has expired), a new access token is fetched from the token server.
-func (authenticator *CloudPakForDataAuthenticator) getToken() (string, error) {
-	if authenticator.tokenData == nil || !authenticator.tokenData.isTokenValid() {
+func (authenticator *CloudPakForDataAuthenticator) GetToken() (string, error) {
+	if authenticator.getTokenData() == nil || !authenticator.getTokenData().isTokenValid() {
 		// synchronously request the token
 		err := authenticator.synchronizedRequestToken()
 		if err != nil {
 			return "", err
 		}
-	} else if authenticator.tokenData.needsRefresh() {
+	} else if authenticator.getTokenData().needsRefresh() {
 		// If refresh needed, kick off a go routine in the background to get a new token
-		ch := make(chan error)
-		go func() {
-			ch <- authenticator.getTokenData()
-		}()
-		select {
-		case err := <-ch:
-			if err != nil {
-				return "", err
-			}
-		default:
-		}
+		//nolint: errcheck
+		go authenticator.invokeRequestTokenData()
 	}
 
 	// return an error if the access token is not valid or was not fetched
-	if authenticator.tokenData == nil || authenticator.tokenData.AccessToken == "" {
+	if authenticator.getTokenData() == nil || authenticator.getTokenData().AccessToken == "" {
 		return "", fmt.Errorf("Error while trying to get access token")
 	}
 
-	return authenticator.tokenData.AccessToken, nil
+	return authenticator.getTokenData().AccessToken, nil
 }
 
 // synchronizedRequestToken: synchronously checks if the current token in cache
@@ -210,27 +221,28 @@ func (authenticator *CloudPakForDataAuthenticator) synchronizedRequestToken() er
 	cp4dRequestTokenMutex.Lock()
 	defer cp4dRequestTokenMutex.Unlock()
 	// if cached token is still valid, then just continue to use it
-	if authenticator.tokenData != nil && authenticator.tokenData.isTokenValid() {
+	if authenticator.getTokenData() != nil && authenticator.getTokenData().isTokenValid() {
 		return nil
 	}
 
-	return authenticator.getTokenData()
+	return authenticator.invokeRequestTokenData()
 }
 
-// getTokenData: requests a new token from the token server and
+// invokeRequestTokenData: requests a new token from the token server and
 // unmarshals the token information to the tokenData cache. Returns
 // an error if the token was unable to be fetched, otherwise returns nil
-func (authenticator *CloudPakForDataAuthenticator) getTokenData() error {
+func (authenticator *CloudPakForDataAuthenticator) invokeRequestTokenData() error {
 	tokenResponse, err := authenticator.requestToken()
 	if err != nil {
-		authenticator.tokenData = nil
+		authenticator.setTokenData(nil)
 		return err
 	}
 
-	authenticator.tokenData, err = newCp4dTokenData(tokenResponse)
-	if err != nil {
-		authenticator.tokenData = nil
+	if tokenData, err := newCp4dTokenData(tokenResponse); err != nil {
+		authenticator.setTokenData(nil)
 		return err
+	} else {
+		authenticator.setTokenData(tokenData)
 	}
 
 	return nil
@@ -298,9 +310,31 @@ func (authenticator *CloudPakForDataAuthenticator) requestToken() (tokenResponse
 		}
 	}
 
+	// If debug is enabled, then dump the request.
+	if GetLogger().IsLogLevelEnabled(LevelDebug) {
+		buf, dumpErr := httputil.DumpRequestOut(req, req.Body != nil)
+		if dumpErr == nil {
+			GetLogger().Debug("Request:\n%s\n", RedactSecrets(string(buf)))
+		} else {
+			GetLogger().Debug(fmt.Sprintf("error while attempting to log outbound request: %s", dumpErr.Error()))
+		}
+	}
+
+	GetLogger().Debug("Invoking CP4D token service operation: %s", builder.URL)
 	resp, err := authenticator.Client.Do(req)
 	if err != nil {
 		return
+	}
+	GetLogger().Debug("Returned from CP4D token service operation, received status code %d", resp.StatusCode)
+
+	// If debug is enabled, then dump the response.
+	if GetLogger().IsLogLevelEnabled(LevelDebug) {
+		buf, dumpErr := httputil.DumpResponse(resp, req.Body != nil)
+		if dumpErr == nil {
+			GetLogger().Debug("Response:\n%s\n", RedactSecrets(string(buf)))
+		} else {
+			GetLogger().Debug(fmt.Sprintf("error while attempting to log inbound response: %s", dumpErr.Error()))
+		}
 	}
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {

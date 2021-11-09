@@ -17,10 +17,10 @@ import (
 	runtimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
+	machinev1beta1 "github.com/openshift/api/machine/v1beta1"
 	"github.com/openshift/cluster-api-provider-powervs/pkg/apis/powervsprovider/v1alpha1"
 	"github.com/openshift/cluster-api-provider-powervs/pkg/client"
 	"github.com/openshift/cluster-api-provider-powervs/pkg/client/mock"
-	machinev1beta1 "github.com/openshift/machine-api-operator/pkg/apis/machine/v1beta1"
 	machinecontroller "github.com/openshift/machine-api-operator/pkg/controller/machine"
 )
 
@@ -155,7 +155,7 @@ func TestCreate(t *testing.T) {
 	mockPowerVSClient.EXPECT().GetInstanceByName(gomock.Any()).Return(stubGetInstance(), nil)
 	mockPowerVSClient.EXPECT().CreateInstance(gomock.Any()).Return(stubGetInstances(), nil)
 	mockPowerVSClient.EXPECT().GetInstance(gomock.Any()).Return(stubGetInstance(), nil)
-	mockPowerVSClient.EXPECT().DeleteInstance(gomock.Any()).Return(nil)
+	mockPowerVSClient.EXPECT().DeleteInstance(gomock.Any()).Return(nil).AnyTimes()
 	mockPowerVSClient.EXPECT().GetImages().Return(stubGetImages(imageNamePrefix, 3), nil)
 	mockPowerVSClient.EXPECT().GetNetworks().Return(stubGetNetworks(networkNamePrefix, 3), nil)
 
@@ -208,7 +208,7 @@ func TestCreate(t *testing.T) {
 
 		// test create
 		err = reconciler.create()
-		log.Printf("Error is %s", err)
+		log.Printf("Error is %v", err)
 		if tc.expectedError != nil {
 			if err == nil {
 				t.Error("reconciler was expected to return error")
