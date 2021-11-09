@@ -29,12 +29,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	configv1 "github.com/openshift/api/config/v1"
+	mapiv1beta1 "github.com/openshift/api/machine/v1beta1"
 	machineactuator "github.com/openshift/cluster-api-provider-powervs/pkg/actuators/machine"
 	powervsclient "github.com/openshift/cluster-api-provider-powervs/pkg/client"
 	"github.com/openshift/cluster-api-provider-powervs/pkg/controller/nodeupdate"
 	"github.com/openshift/cluster-api-provider-powervs/pkg/options"
 	"github.com/openshift/cluster-api-provider-powervs/pkg/version"
-	mapiv1beta1 "github.com/openshift/machine-api-operator/pkg/apis/machine/v1beta1"
 	"github.com/openshift/machine-api-operator/pkg/controller/machine"
 	"github.com/openshift/machine-api-operator/pkg/metrics"
 )

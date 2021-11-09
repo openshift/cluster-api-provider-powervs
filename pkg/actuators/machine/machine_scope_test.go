@@ -16,9 +16,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
+	machinev1 "github.com/openshift/api/machine/v1beta1"
 	"github.com/openshift/cluster-api-provider-powervs/pkg/apis/powervsprovider/v1alpha1"
 	powervsClient "github.com/openshift/cluster-api-provider-powervs/pkg/client"
-	machinev1 "github.com/openshift/machine-api-operator/pkg/apis/machine/v1beta1"
 
 	. "github.com/onsi/gomega"
 )
