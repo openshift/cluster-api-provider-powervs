@@ -66,8 +66,8 @@ func TestRemoveStoppedMachine(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			mockCtrl := gomock.NewController(t)
 			mockPowerVSClient := mock.NewMockClient(mockCtrl)
-			mockPowerVSClient.EXPECT().GetInstanceByName(machine.GetName()).Return(tc.output, tc.err)
-			mockPowerVSClient.EXPECT().DeleteInstance(gomock.Any()).Return(nil)
+			mockPowerVSClient.EXPECT().GetInstanceByName(machine.GetName()).Return(tc.output, tc.err).AnyTimes()
+			mockPowerVSClient.EXPECT().DeleteInstance(gomock.Any()).Return(nil).AnyTimes()
 			err = removeStoppedMachine(machine, mockPowerVSClient)
 			if tc.expectError {
 				if err == nil {
@@ -121,10 +121,10 @@ func TestLaunchInstance(t *testing.T) {
 			mockPowerVSClient := mock.NewMockClient(mockCtrl)
 
 			//Setup the mocks
-			mockPowerVSClient.EXPECT().CreateInstance(gomock.Any()).Return(stubGetInstances(), tc.createInstanceErr)
-			mockPowerVSClient.EXPECT().GetInstance(gomock.Any()).Return(stubGetInstance(), tc.instancesErr)
-			mockPowerVSClient.EXPECT().GetImages().Return(stubGetImages(imageNamePrefix, 3), nil)
-			mockPowerVSClient.EXPECT().GetNetworks().Return(stubGetNetworks(networkNamePrefix, 3), nil)
+			mockPowerVSClient.EXPECT().CreateInstance(gomock.Any()).Return(stubGetInstances(), tc.createInstanceErr).AnyTimes()
+			mockPowerVSClient.EXPECT().GetInstance(gomock.Any()).Return(stubGetInstance(), tc.instancesErr).AnyTimes()
+			mockPowerVSClient.EXPECT().GetImages().Return(stubGetImages(imageNamePrefix, 3), nil).AnyTimes()
+			mockPowerVSClient.EXPECT().GetNetworks().Return(stubGetNetworks(networkNamePrefix, 3), nil).AnyTimes()
 
 			_, launchErr := launchInstance(machine, providerConfig, nil, mockPowerVSClient)
 			t.Log(launchErr)

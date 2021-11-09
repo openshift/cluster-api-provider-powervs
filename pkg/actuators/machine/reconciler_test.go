@@ -155,7 +155,7 @@ func TestCreate(t *testing.T) {
 	mockPowerVSClient.EXPECT().GetInstanceByName(gomock.Any()).Return(stubGetInstance(), nil)
 	mockPowerVSClient.EXPECT().CreateInstance(gomock.Any()).Return(stubGetInstances(), nil)
 	mockPowerVSClient.EXPECT().GetInstance(gomock.Any()).Return(stubGetInstance(), nil)
-	mockPowerVSClient.EXPECT().DeleteInstance(gomock.Any()).Return(nil)
+	mockPowerVSClient.EXPECT().DeleteInstance(gomock.Any()).Return(nil).AnyTimes()
 	mockPowerVSClient.EXPECT().GetImages().Return(stubGetImages(imageNamePrefix, 3), nil)
 	mockPowerVSClient.EXPECT().GetNetworks().Return(stubGetNetworks(networkNamePrefix, 3), nil)
 
@@ -208,7 +208,7 @@ func TestCreate(t *testing.T) {
 
 		// test create
 		err = reconciler.create()
-		log.Printf("Error is %s", err)
+		log.Printf("Error is %v", err)
 		if tc.expectedError != nil {
 			if err == nil {
 				t.Error("reconciler was expected to return error")
