@@ -22,7 +22,7 @@ type CreateDataVolume struct {
 	// PVM Instance (ID or Name) to base volume affinity policy against; required if requesting affinity and affinityVolume is not provided
 	AffinityPVMInstance *string `json:"affinityPVMInstance,omitempty"`
 
-	// Affinity policy for data volume being created; ignored if volumePool provided; for policy affinity requires one of affinityPVMInstance or affinityVolume to be specified; for policy anti-affinity requires one of antiAffinityPVMInstances or antiAffinityVolumes to be specified
+	// Affinity policy for data volume being created; ignored if volumePool provided; for policy 'affinity' requires one of affinityPVMInstance or affinityVolume to be specified; for policy 'anti-affinity' requires one of antiAffinityPVMInstances or antiAffinityVolumes to be specified
 	// Enum: [affinity anti-affinity]
 	AffinityPolicy *string `json:"affinityPolicy,omitempty"`
 
@@ -41,6 +41,9 @@ type CreateDataVolume struct {
 	// Volume Name
 	// Required: true
 	Name *string `json:"name"`
+
+	// Indicates if the volume should be replication enabled or not
+	ReplicationEnabled *bool `json:"replicationEnabled,omitempty"`
 
 	// Indicates if the volume is shareable between VMs
 	Shareable *bool `json:"shareable,omitempty"`

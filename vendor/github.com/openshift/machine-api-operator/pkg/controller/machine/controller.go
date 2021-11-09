@@ -20,21 +20,25 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"reflect"
 	"time"
 
-	machinev1 "github.com/openshift/machine-api-operator/pkg/apis/machine/v1beta1"
+	machinev1 "github.com/openshift/api/machine/v1beta1"
 	"github.com/openshift/machine-api-operator/pkg/metrics"
 	"github.com/openshift/machine-api-operator/pkg/util"
+	"github.com/openshift/machine-api-operator/pkg/util/conditions"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
 	"k8s.io/kubectl/pkg/drain"
+	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -92,7 +96,7 @@ const (
 	// Hardcoded instance state set on machine failure
 	unknownInstanceState = "Unknown"
 
-	skipWaitForDeleteTimeoutSeconds = 60 * 5
+	skipWaitForDeleteTimeoutSeconds = 1
 )
 
 var DefaultActuator Actuator
@@ -144,6 +148,9 @@ type ReconcileMachine struct {
 	eventRecorder record.EventRecorder
 
 	actuator Actuator
+
+	// nowFunc is used to mock time in testing. It should be nil in production.
+	nowFunc func() time.Time
 }
 
 // Reconcile reads that state of the cluster for a Machine object and makes changes based on the state read
@@ -167,7 +174,11 @@ func (r *ReconcileMachine) Reconcile(ctx context.Context, request reconcile.Requ
 	machineName := m.GetName()
 	klog.Infof("%v: reconciling Machine", machineName)
 
-	if errList := m.Validate(); len(errList) > 0 {
+	// Get the original state of conditions now so that they can be used to calculate the patch later.
+	// This must be a copy otherwise the referenced slice will be modified by later machine conditions changes.
+	originalConditions := m.Status.Conditions.DeepCopy()
+
+	if errList := validateMachine(m); len(errList) > 0 {
 		err := fmt.Errorf("%v: machine validation failed: %v", machineName, errList.ToAggregate().Error())
 		klog.Error(err)
 		r.eventRecorder.Eventf(m, corev1.EventTypeWarning, "FailedValidate", err.Error())
@@ -195,7 +206,7 @@ func (r *ReconcileMachine) Reconcile(ctx context.Context, request reconcile.Requ
 	}
 
 	if !m.ObjectMeta.DeletionTimestamp.IsZero() {
-		if err := r.setPhase(m, phaseDeleting, ""); err != nil {
+		if err := r.updateStatus(ctx, m, phaseDeleting, nil, originalConditions); err != nil {
 			return reconcile.Result{}, err
 		}
 
@@ -212,7 +223,7 @@ func (r *ReconcileMachine) Reconcile(ctx context.Context, request reconcile.Requ
 		// by cloud controller manager. In that case some machines would never get
 		// deleted without a manual intervention.
 		if _, exists := m.ObjectMeta.Annotations[ExcludeNodeDrainingAnnotation]; !exists && m.Status.NodeRef != nil {
-			if err := r.drainNode(m); err != nil {
+			if err := r.drainNode(ctx, m); err != nil {
 				klog.Errorf("%v: failed to drain node for machine: %v", machineName, err)
 				return delayIfRequeueAfterError(err)
 			}
@@ -252,7 +263,7 @@ func (r *ReconcileMachine) Reconcile(ctx context.Context, request reconcile.Requ
 
 		// Remove finalizer on successful deletion.
 		m.ObjectMeta.Finalizers = util.Filter(m.ObjectMeta.Finalizers, machinev1.MachineFinalizer)
-		if err := r.Client.Update(context.Background(), m); err != nil {
+		if err := r.Client.Update(ctx, m); err != nil {
 			klog.Errorf("%v: failed to remove finalizer from machine: %v", machineName, err)
 			return reconcile.Result{}, err
 		}
@@ -269,6 +280,17 @@ func (r *ReconcileMachine) Reconcile(ctx context.Context, request reconcile.Requ
 	instanceExists, err := r.actuator.Exists(ctx, m)
 	if err != nil {
 		klog.Errorf("%v: failed to check if machine exists: %v", machineName, err)
+
+		conditions.Set(m, conditions.UnknownCondition(
+			machinev1.InstanceExistsCondition,
+			machinev1.ErrorCheckingProviderReason,
+			"Failed to check if machine exists: %v", err,
+		))
+
+		if patchErr := r.updateStatus(ctx, m, pointer.StringPtrDerefOr(m.Status.Phase, ""), nil, originalConditions); patchErr != nil {
+			klog.Errorf("%v: error patching status: %v", machineName, patchErr)
+		}
+
 		return reconcile.Result{}, err
 	}
 
@@ -276,44 +298,75 @@ func (r *ReconcileMachine) Reconcile(ctx context.Context, request reconcile.Requ
 		klog.Infof("%v: reconciling machine triggers idempotent update", machineName)
 		if err := r.actuator.Update(ctx, m); err != nil {
 			klog.Errorf("%v: error updating machine: %v, retrying in %v seconds", machineName, err, requeueAfter)
+
+			if patchErr := r.updateStatus(ctx, m, pointer.StringPtrDerefOr(m.Status.Phase, ""), nil, originalConditions); patchErr != nil {
+				klog.Errorf("%v: error patching status: %v", machineName, patchErr)
+			}
+
 			return reconcile.Result{RequeueAfter: requeueAfter}, nil
 		}
 
+		// Mark the instance exists condition true after actuator update else the update may overwrite changes
+		conditions.MarkTrue(m, machinev1.InstanceExistsCondition)
+
 		if !machineIsProvisioned(m) {
 			klog.Errorf("%v: instance exists but providerID or addresses has not been given to the machine yet, requeuing", machineName)
+			if patchErr := r.updateStatus(ctx, m, pointer.StringPtrDerefOr(m.Status.Phase, ""), nil, originalConditions); patchErr != nil {
+				klog.Errorf("%v: error patching status: %v", machineName, patchErr)
+			}
+
 			return reconcile.Result{RequeueAfter: requeueAfter}, nil
 		}
 
 		if !machineHasNode(m) {
 			// Requeue until we reach running phase
-			if err := r.setPhase(m, phaseProvisioned, ""); err != nil {
+			if err := r.updateStatus(ctx, m, phaseProvisioned, nil, originalConditions); err != nil {
 				return reconcile.Result{}, err
 			}
 			klog.Infof("%v: has no node yet, requeuing", machineName)
 			return reconcile.Result{RequeueAfter: requeueAfter}, nil
 		}
 
-		return reconcile.Result{}, r.setPhase(m, phaseRunning, "")
+		return reconcile.Result{}, r.updateStatus(ctx, m, phaseRunning, nil, originalConditions)
 	}
 
 	// Instance does not exist but the machine has been given a providerID/address.
 	// This can only be reached if an instance was deleted outside the machine API
 	if machineIsProvisioned(m) {
-		if err := r.setPhase(m, phaseFailed, "Can't find created instance."); err != nil {
+		conditions.Set(m, conditions.FalseCondition(
+			machinev1.InstanceExistsCondition,
+			machinev1.InstanceMissingReason,
+			machinev1.ConditionSeverityWarning,
+			"Instance not found on provider",
+		))
+
+		if err := r.updateStatus(ctx, m, phaseFailed, errors.New("Can't find created instance."), originalConditions); err != nil {
 			return reconcile.Result{}, err
 		}
 		return reconcile.Result{}, nil
 	}
 
+	conditions.Set(m, conditions.FalseCondition(
+		machinev1.InstanceExistsCondition,
+		machinev1.InstanceNotCreatedReason,
+		machinev1.ConditionSeverityWarning,
+		"Instance has not been created",
+	))
+
 	// Machine resource created and instance does not exist yet.
-	if err := r.setPhase(m, phaseProvisioning, ""); err != nil {
-		return reconcile.Result{}, err
+	if stringPointerDeref(m.Status.Phase) == "" {
+		klog.V(2).Infof("%v: setting phase to Provisioning and requeuing", machineName)
+		if err := r.updateStatus(ctx, m, phaseProvisioning, nil, originalConditions); err != nil {
+			return reconcile.Result{}, err
+		}
+		return reconcile.Result{RequeueAfter: requeueAfter}, nil
 	}
+
 	klog.Infof("%v: reconciling machine triggers idempotent create", machineName)
 	if err := r.actuator.Create(ctx, m); err != nil {
 		klog.Warningf("%v: failed to create machine: %v", machineName, err)
 		if isInvalidMachineConfigurationError(err) {
-			if err := r.setPhase(m, phaseFailed, err.Error()); err != nil {
+			if err := r.updateStatus(ctx, m, phaseFailed, err, originalConditions); err != nil {
 				return reconcile.Result{}, err
 			}
 			return reconcile.Result{}, nil
@@ -325,12 +378,12 @@ func (r *ReconcileMachine) Reconcile(ctx context.Context, request reconcile.Requ
 	return reconcile.Result{RequeueAfter: requeueAfter}, nil
 }
 
-func (r *ReconcileMachine) drainNode(machine *machinev1.Machine) error {
+func (r *ReconcileMachine) drainNode(ctx context.Context, machine *machinev1.Machine) error {
 	kubeClient, err := kubernetes.NewForConfig(r.config)
 	if err != nil {
 		return fmt.Errorf("unable to build kube client: %v", err)
 	}
-	node, err := kubeClient.CoreV1().Nodes().Get(context.Background(), machine.Status.NodeRef.Name, metav1.GetOptions{})
+	node, err := kubeClient.CoreV1().Nodes().Get(ctx, machine.Status.NodeRef.Name, metav1.GetOptions{})
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			// If an admin deletes the node directly, we'll end up here.
@@ -341,6 +394,7 @@ func (r *ReconcileMachine) drainNode(machine *machinev1.Machine) error {
 	}
 
 	drainer := &drain.Helper{
+		Ctx:                 ctx,
 		Client:              kubeClient,
 		Force:               true,
 		IgnoreAllDaemonSets: true,
@@ -362,9 +416,12 @@ func (r *ReconcileMachine) drainNode(machine *machinev1.Machine) error {
 	}
 
 	if nodeIsUnreachable(node) {
-		klog.Infof("%q: Node %q is unreachable, draining will wait %d seconds after pod is signalled for deletion and skip after it",
-			machine.Name, node.Name, skipWaitForDeleteTimeoutSeconds)
+		klog.Infof("%q: Node %q is unreachable, draining will ignore gracePeriod. PDBs are still honored.",
+			machine.Name, node.Name)
+		// Since kubelet is unreachable, pods will never disappear and we still
+		// need SkipWaitForDeleteTimeoutSeconds so we don't wait for them.
 		drainer.SkipWaitForDeleteTimeoutSeconds = skipWaitForDeleteTimeoutSeconds
+		drainer.GracePeriodSeconds = 1
 	}
 
 	if err := drain.RunCordonOrUncordon(drainer, node, true); err != nil {
@@ -418,63 +475,90 @@ func isInvalidMachineConfigurationError(err error) bool {
 	return false
 }
 
-func (r *ReconcileMachine) setPhase(machine *machinev1.Machine, phase string, errorMessage string) error {
+// updateStatus is intended to ensure that the status of the Machine reflects the input to this function.
+// Because the conditions are set on the machine outside of this function, we must pass the original state of the
+// machine conditions so that the diff can be calculated properly within this function.
+func (r *ReconcileMachine) updateStatus(ctx context.Context, machine *machinev1.Machine, phase string, failureCause error, originalConditions []machinev1.Condition) error {
 	if stringPointerDeref(machine.Status.Phase) != phase {
 		klog.V(3).Infof("%v: going into phase %q", machine.GetName(), phase)
+	}
 
-		// A call to Patch will mutate our local copy of the machine to match what is stored in the API.
-		// Before we make any changes to the status subresource on our local copy, we need to patch the object first,
-		// otherwise our local changes to the status subresource will be lost.
-		if phase == phaseFailed {
-			err := r.patchFailedMachineInstanceAnnotation(machine)
-			if err != nil {
-				klog.Errorf("Failed to update machine %q: %v", machine.GetName(), err)
-				return err
-			}
-		}
+	// Conditions need to be deep copied as they are set outside of this function.
+	// They will be restored after any updates to the base (done by patching annotations).
+	conditions := machine.Status.Conditions.DeepCopy()
 
-		// Since we may have mutated the local copy of the machine above, we need to calculate baseToPatch here.
-		// Any updates to the status must be done after this point.
-		baseToPatch := client.MergeFrom(machine.DeepCopy())
-
-		if phase == phaseFailed {
-			if err := r.overrideFailedMachineProviderStatusState(machine); err != nil {
-				klog.Errorf("Failed to update machine provider status %q: %v", machine.GetName(), err)
-				return err
-			}
-		}
-
-		machine.Status.Phase = &phase
-		machine.Status.ErrorMessage = nil
-		now := metav1.Now()
-		machine.Status.LastUpdated = &now
-		if phase == phaseFailed && errorMessage != "" {
-			machine.Status.ErrorMessage = &errorMessage
-		}
-		if err := r.Client.Status().Patch(context.Background(), machine, baseToPatch); err != nil {
-			klog.Errorf("Failed to update machine status %q: %v", machine.GetName(), err)
+	// A call to Patch will mutate our local copy of the machine to match what is stored in the API.
+	// Before we make any changes to the status subresource on our local copy, we need to patch the object first,
+	// otherwise our local changes to the status subresource will be lost.
+	if phase == phaseFailed {
+		err := r.patchFailedMachineInstanceAnnotation(ctx, machine)
+		if err != nil {
+			klog.Errorf("Failed to update machine %q: %v", machine.GetName(), err)
 			return err
 		}
+	}
 
-		// Update the metric after everything else has succeeded to prevent duplicate
-		// entries when there are failures
-		if phase != phaseDeleting {
-			// Apart from deleting, update the transition metric
-			// Deleting would always end up in the infinite bucket
-			timeElapsed := time.Now().Sub(machine.GetCreationTimestamp().Time).Seconds()
-			metrics.MachinePhaseTransitionSeconds.With(map[string]string{"phase": phase}).Observe(timeElapsed)
+	// To ensure conditions can be patched properly, set the original conditions on the baseMachine.
+	// This allows the difference to be calculated as part of the patch.
+	baseMachine := machine.DeepCopy()
+	baseMachine.Status.Conditions = originalConditions
+	machine.Status.Conditions = conditions
+
+	// Since we may have mutated the local copy of the machine above, we need to calculate baseToPatch here.
+	// Any updates to the status must be done after this point.
+	baseToPatch := client.MergeFrom(baseMachine)
+
+	if phase == phaseFailed {
+		if err := r.overrideFailedMachineProviderStatusState(machine); err != nil {
+			klog.Errorf("Failed to update machine provider status %q: %v", machine.GetName(), err)
+			return err
 		}
 	}
+
+	machine.Status.Phase = &phase
+	machine.Status.ErrorReason = nil
+	machine.Status.ErrorMessage = nil
+	if phase == phaseFailed && failureCause != nil {
+		var machineError *MachineError
+		if errors.As(failureCause, &machineError) {
+			machine.Status.ErrorReason = &machineError.Reason
+			machine.Status.ErrorMessage = &machineError.Message
+		} else {
+			errorMessage := failureCause.Error()
+			machine.Status.ErrorMessage = &errorMessage
+		}
+	}
+
+	if !reflect.DeepEqual(baseMachine.Status, machine.Status) {
+		// Something on the status has been changed this reconcile
+		now := metav1.NewTime(r.now())
+		machine.Status.LastUpdated = &now
+	}
+
+	if err := r.Client.Status().Patch(ctx, machine, baseToPatch); err != nil {
+		klog.Errorf("Failed to update machine status %q: %v", machine.GetName(), err)
+		return err
+	}
+
+	// Update the metric after everything else has succeeded to prevent duplicate
+	// entries when there are failures
+	if phase != phaseDeleting {
+		// Apart from deleting, update the transition metric
+		// Deleting would always end up in the infinite bucket
+		timeElapsed := r.now().Sub(machine.GetCreationTimestamp().Time).Seconds()
+		metrics.MachinePhaseTransitionSeconds.With(map[string]string{"phase": phase}).Observe(timeElapsed)
+	}
+
 	return nil
 }
 
-func (r *ReconcileMachine) patchFailedMachineInstanceAnnotation(machine *machinev1.Machine) error {
+func (r *ReconcileMachine) patchFailedMachineInstanceAnnotation(ctx context.Context, machine *machinev1.Machine) error {
 	baseToPatch := client.MergeFrom(machine.DeepCopy())
 	if machine.Annotations == nil {
 		machine.Annotations = map[string]string{}
 	}
 	machine.Annotations[MachineInstanceStateAnnotationName] = unknownInstanceState
-	if err := r.Client.Patch(context.Background(), machine, baseToPatch); err != nil {
+	if err := r.Client.Patch(ctx, machine, baseToPatch); err != nil {
 		return err
 	}
 	return nil
@@ -517,6 +601,32 @@ func (r *ReconcileMachine) overrideFailedMachineProviderStatusState(machine *mac
 	}
 
 	return nil
+}
+
+func validateMachine(m *machinev1.Machine) field.ErrorList {
+	errors := field.ErrorList{}
+
+	// validate spec.labels
+	fldPath := field.NewPath("spec")
+	if m.Labels[machinev1.MachineClusterIDLabel] == "" {
+		errors = append(errors, field.Invalid(fldPath.Child("labels"), m.Labels, fmt.Sprintf("missing %v label.", machinev1.MachineClusterIDLabel)))
+	}
+
+	// validate provider config is set
+	if m.Spec.ProviderSpec.Value == nil {
+		errors = append(errors, field.Invalid(fldPath.Child("spec").Child("providerspec"), m.Spec.ProviderSpec, "value field must be set"))
+	}
+
+	return errors
+}
+
+// now is used to get the current time. If the reconciler nowFunc is no nil this will be used instead of time.Now().
+// This is only here so that tests can modify the time to check time based assertions.
+func (r *ReconcileMachine) now() time.Time {
+	if r.nowFunc != nil {
+		return r.nowFunc()
+	}
+	return time.Now()
 }
 
 func machineIsProvisioned(machine *machinev1.Machine) bool {

@@ -76,13 +76,17 @@ type PVMInstanceCreate struct {
 	// The pvm instance Software Licenses
 	SoftwareLicenses *SoftwareLicenses `json:"softwareLicenses,omitempty"`
 
-	// The storage affinity data
+	// The storage affinity data; ignored if storagePool is provided; Only valid when you deploy one of the IBM supplied stock images. Storage type and pool for a custom image (an imported image or an image that is created from a PVMInstance capture) defaults to the storage type and pool the image was created in
 	StorageAffinity *StorageAffinity `json:"storageAffinity,omitempty"`
 
-	// Storage Pool for server deployment; if provided then storageAffinityPolicy and storageType will be ignored
+	// The storage connection type
+	// Enum: [vSCSI]
+	StorageConnection string `json:"storageConnection,omitempty"`
+
+	// Storage Pool for server deployment; if provided then storageAffinity and storageType will be ignored; Only valid when you deploy one of the IBM supplied stock images. Storage type and pool for a custom image (an imported image or an image that is created from a PVMInstance capture) defaults to the storage type and pool the image was created in
 	StoragePool string `json:"storagePool,omitempty"`
 
-	// Storage type for server deployment; will be ignored if storagePool or storageAffinityPolicy is provided
+	// Storage type for server deployment; will be ignored if storagePool or storageAffinity is provided; Only valid when you deploy one of the IBM supplied stock images. Storage type and pool for a custom image (an imported image or an image that is created from a PVMInstance capture) defaults to the storage type and pool the image was created in
 	StorageType string `json:"storageType,omitempty"`
 
 	// System type used to host the instance
@@ -143,6 +147,10 @@ func (m *PVMInstanceCreate) Validate(formats strfmt.Registry) error {
 	}
 
 	if err := m.validateStorageAffinity(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.validateStorageConnection(formats); err != nil {
 		res = append(res, err)
 	}
 
@@ -399,6 +407,46 @@ func (m *PVMInstanceCreate) validateStorageAffinity(formats strfmt.Registry) err
 			}
 			return err
 		}
+	}
+
+	return nil
+}
+
+var pVmInstanceCreateTypeStorageConnectionPropEnum []interface{}
+
+func init() {
+	var res []string
+	if err := json.Unmarshal([]byte(`["vSCSI"]`), &res); err != nil {
+		panic(err)
+	}
+	for _, v := range res {
+		pVmInstanceCreateTypeStorageConnectionPropEnum = append(pVmInstanceCreateTypeStorageConnectionPropEnum, v)
+	}
+}
+
+const (
+
+	// PVMInstanceCreateStorageConnectionVSCSI captures enum value "vSCSI"
+	PVMInstanceCreateStorageConnectionVSCSI string = "vSCSI"
+)
+
+// prop value enum
+func (m *PVMInstanceCreate) validateStorageConnectionEnum(path, location string, value string) error {
+	if err := validate.Enum(path, location, value, pVmInstanceCreateTypeStorageConnectionPropEnum); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *PVMInstanceCreate) validateStorageConnection(formats strfmt.Registry) error {
+
+	if swag.IsZero(m.StorageConnection) { // not required
+		return nil
+	}
+
+	// value enum
+	if err := m.validateStorageConnectionEnum("storageConnection", "body", m.StorageConnection); err != nil {
+		return err
 	}
 
 	return nil
