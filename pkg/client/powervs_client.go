@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	gohttp "net/http"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -57,6 +58,9 @@ const (
 
 	//regionEnvironmentalVariable is the environmental variable to set the region
 	regionEnvironmentalVariable = "IBMCLOUD_REGION"
+
+	//powerIaaSCustomEndpointName is the short name used to fetch Power IaaS endpoint URL
+	powerIaaSCustomEndpointName = "pi"
 )
 
 var _ Client = &powerVSClient{}
@@ -69,7 +73,7 @@ var (
 	endPointKeyToEnvNameMap = map[string]string{
 		"iam": "IBMCLOUD_IAM_API_ENDPOINT",
 		"rc":  "IBMCLOUD_RESOURCE_CONTROLLER_API_ENDPOINT",
-		"pe":  "IBMCLOUD_POWER_API_ENDPOINT",
+		"pi":  "IBMCLOUD_POWER_API_ENDPOINT",
 	}
 )
 
@@ -119,15 +123,8 @@ func NewValidatedClient(ctrlRuntimeClient client.Client, secretName, namespace, 
 		return nil, err
 	}
 
-	customEndpointsMap, err := resolveEndpoints(ctrlRuntimeClient)
-	if err != nil {
+	if err := getAndSetServiceEndpoints(ctrlRuntimeClient); err != nil {
 		return nil, err
-	}
-
-	if len(customEndpointsMap) > 0 {
-		if err = setCustomEndpoints(customEndpointsMap, []string{"iam", "rc", "pe"}); err != nil {
-			return nil, err
-		}
 	}
 
 	s, err := bxsession.New(&bluemix.Config{BluemixAPIKey: apikey})
@@ -186,7 +183,12 @@ func NewValidatedClient(ctrlRuntimeClient client.Client, secretName, namespace, 
 }
 
 // NewClientMinimal is bare minimal client can be used for quarrying the resources
-func NewClientMinimal(apiKey string) (Client, error) {
+func NewClientMinimal(ctrlRuntimeClient client.Client, apiKey string) (Client, error) {
+
+	if err := getAndSetServiceEndpoints(ctrlRuntimeClient); err != nil {
+		return nil, err
+	}
+
 	s, err := bxsession.New(&bluemix.Config{BluemixAPIKey: apiKey})
 	if err != nil {
 		return nil, err
@@ -352,18 +354,21 @@ func resolveEndpoints(ctrlRuntimeClient client.Client) (map[string]string, error
 		return nil, nil
 	}
 
-	return buildCustomEndpointsMap(infra.Status.PlatformStatus.PowerVS.ServiceEndpoints), nil
-}
-
-// buildCustomEndpointsMap constructs a map that links endpoint name and it's url
-func buildCustomEndpointsMap(customEndpoints []configv1.PowerVSServiceEndpoint) map[string]string {
 	customEndpointsMap := make(map[string]string)
 
-	for _, customEndpoint := range customEndpoints {
+	//Build the custom endpoint map
+	for _, customEndpoint := range infra.Status.PlatformStatus.PowerVS.ServiceEndpoints {
+		// Power VS client expects the IBMCLOUD_POWER_API_ENDPOINT variable to be set without scheme (https)
+		if customEndpoint.Name == powerIaaSCustomEndpointName {
+			peURL, err := url.Parse(customEndpoint.URL)
+			if err != nil {
+				return nil, err
+			}
+			customEndpoint.URL = peURL.Host
+		}
 		customEndpointsMap[customEndpoint.Name] = customEndpoint.URL
 	}
-
-	return customEndpointsMap
+	return customEndpointsMap, nil
 }
 
 func setCustomEndpoints(customEndpointsMap map[string]string, keys []string) error {
@@ -383,4 +388,26 @@ func setEnvironmentVariables(key, val string) error {
 		return err
 	}
 	return nil
+}
+
+func getAndSetServiceEndpoints(ctrlRuntimeClient client.Client) error {
+	customEndpointsMap, err := resolveEndpoints(ctrlRuntimeClient)
+	if err != nil {
+		return err
+	}
+
+	if len(customEndpointsMap) > 0 {
+		if err = setCustomEndpoints(customEndpointsMap, getCustomEndPointKeys(customEndpointsMap)); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func getCustomEndPointKeys(customEndpointsMap map[string]string) []string {
+	keys := make([]string, 0, len(endPointKeyToEnvNameMap))
+	for key := range customEndpointsMap {
+		keys = append(keys, key)
+	}
+	return keys
 }

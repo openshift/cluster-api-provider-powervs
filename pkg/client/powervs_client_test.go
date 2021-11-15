@@ -22,10 +22,9 @@ var (
 	customEndpointsMap = map[string]string{
 		"iam": "https://test.iam.cloud.ibm.com",
 		"rc":  "https://test.resource-controller.cloud.ibm.com",
-		"pe":  "https://test-region.power-iaas.cloud.ibm.com",
+		"pi":  "https://test-region.power-iaas.cloud.ibm.com",
 	}
-	testRegion         = "test-region"
-	customEndpointKeys = []string{"iam", "rc", "pe"}
+	testRegion = "test-region"
 )
 
 func TestSetEnvironmentVariables(t *testing.T) {
@@ -41,10 +40,10 @@ func TestSetEnvironmentVariables(t *testing.T) {
 }
 
 func TestSetCustomEndpoints(t *testing.T) {
-	if err := setCustomEndpoints(customEndpointsMap, customEndpointKeys); err != nil {
+	if err := setCustomEndpoints(customEndpointsMap, getCustomEndPointKeys(customEndpointsMap)); err != nil {
 		t.Fatal(err)
 	}
-	for _, key := range customEndpointKeys {
+	for _, key := range getCustomEndPointKeys(customEndpointsMap) {
 		val := getEnvironmentalVariableValue(endPointKeyToEnvNameMap[key])
 		if val != customEndpointsMap[key] {
 			t.Fatalf("Expected value %s got %s ", customEndpointsMap[key], val)
