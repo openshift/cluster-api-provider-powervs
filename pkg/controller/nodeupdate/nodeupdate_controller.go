@@ -71,7 +71,7 @@ func (r *providerIDReconciler) Reconcile(ctx context.Context, request reconcile.
 		return reconcile.Result{}, fmt.Errorf("failed to read the API key from the secret: %v", err)
 	}
 
-	c, err := powervsclient.NewClientMinimal(apiKey)
+	c, err := powervsclient.NewClientMinimal(r.client, apiKey)
 	if err != nil {
 		return reconcile.Result{}, fmt.Errorf("%s: failed to create NewClientMinimal, with error: %v", node.Name, err)
 	}
