@@ -19,7 +19,6 @@ import (
 	"github.com/IBM-Cloud/power-go-client/clients/instance"
 	"github.com/IBM-Cloud/power-go-client/ibmpisession"
 	"github.com/IBM-Cloud/power-go-client/power/client/p_cloud_networks"
-	"github.com/IBM-Cloud/power-go-client/power/client/p_cloud_p_vm_instances"
 	"github.com/IBM-Cloud/power-go-client/power/models"
 
 	"github.com/golang-jwt/jwt/v4"
@@ -171,14 +170,15 @@ func NewValidatedClient(ctrlRuntimeClient client.Client, secretName, namespace, 
 
 	zone := resource.RegionID
 
-	c.session, err = ibmpisession.New(c.Config.IAMAccessToken, r, debug, time.Hour, c.User.Account, zone)
+	c.session, err = ibmpisession.New(c.Config.IAMAccessToken, r, debug, c.User.Account, zone)
 	if err != nil {
 		return nil, err
 	}
 
-	c.InstanceClient = instance.NewIBMPIInstanceClient(c.session, cloudInstanceID)
-	c.NetworkClient = instance.NewIBMPINetworkClient(c.session, cloudInstanceID)
-	c.ImageClient = instance.NewIBMPIImageClient(c.session, cloudInstanceID)
+	ctx := context.Background()
+	c.InstanceClient = instance.NewIBMPIInstanceClient(ctx, c.session, cloudInstanceID)
+	c.NetworkClient = instance.NewIBMPINetworkClient(ctx, c.session, cloudInstanceID)
+	c.ImageClient = instance.NewIBMPIImageClient(ctx, c.session, cloudInstanceID)
 	return c, err
 }
 
@@ -223,7 +223,7 @@ type powerVSClient struct {
 }
 
 func (p *powerVSClient) GetImages() (*models.Images, error) {
-	return p.ImageClient.GetAll(p.cloudInstanceID)
+	return p.ImageClient.GetAll()
 }
 
 func (p *powerVSClient) GetNetworks() (*models.Networks, error) {
@@ -237,15 +237,15 @@ func (p *powerVSClient) GetNetworks() (*models.Networks, error) {
 }
 
 func (p *powerVSClient) DeleteInstance(id string) error {
-	return p.InstanceClient.Delete(id, p.cloudInstanceID, TIMEOUT)
+	return p.InstanceClient.Delete(id)
 }
 
-func (p *powerVSClient) CreateInstance(params *p_cloud_p_vm_instances.PcloudPvminstancesPostParams) (*models.PVMInstanceList, error) {
-	return p.InstanceClient.Create(params, p.cloudInstanceID, TIMEOUT)
+func (p *powerVSClient) CreateInstance(createParams *models.PVMInstanceCreate) (*models.PVMInstanceList, error) {
+	return p.InstanceClient.Create(createParams)
 }
 
 func (p *powerVSClient) GetInstance(id string) (*models.PVMInstance, error) {
-	return p.InstanceClient.Get(id, p.cloudInstanceID, TIMEOUT)
+	return p.InstanceClient.Get(id)
 }
 
 func (p *powerVSClient) GetInstanceByName(name string) (*models.PVMInstance, error) {
@@ -263,7 +263,7 @@ func (p *powerVSClient) GetInstanceByName(name string) (*models.PVMInstance, err
 }
 
 func (p *powerVSClient) GetInstances() (*models.PVMInstances, error) {
-	return p.InstanceClient.GetAll(p.cloudInstanceID, TIMEOUT)
+	return p.InstanceClient.GetAll()
 }
 
 func (p *powerVSClient) GetCloudServiceInstances() ([]bluemixmodels.ServiceInstanceV2, error) {

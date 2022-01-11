@@ -18,7 +18,6 @@ package client
 
 import (
 	bluemixmodels "github.com/IBM-Cloud/bluemix-go/models"
-	"github.com/IBM-Cloud/power-go-client/power/client/p_cloud_p_vm_instances"
 	"github.com/IBM-Cloud/power-go-client/power/models"
 )
 
@@ -26,7 +25,7 @@ import (
 
 // Client is a wrapper object for actual PowerVS SDK clients to allow for easier testing.
 type Client interface {
-	CreateInstance(*p_cloud_p_vm_instances.PcloudPvminstancesPostParams) (*models.PVMInstanceList, error)
+	CreateInstance(createParams *models.PVMInstanceCreate) (*models.PVMInstanceList, error)
 	GetInstance(id string) (*models.PVMInstance, error)
 	GetInstanceByName(name string) (*models.PVMInstance, error)
 	GetInstances() (*models.PVMInstances, error)
