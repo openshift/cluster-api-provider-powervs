@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/IBM-Cloud/power-go-client/power/client/p_cloud_p_vm_instances"
 	"github.com/IBM-Cloud/power-go-client/power/models"
 	machinev1 "github.com/openshift/api/machine/v1beta1"
 	powervsproviderv1 "github.com/openshift/cluster-api-provider-powervs/pkg/apis/powervsprovider/v1alpha1"
@@ -57,19 +56,18 @@ func launchInstance(machine *machinev1.Machine, machineProviderConfig *powervspr
 		{NetworkID: networkID},
 	}
 
-	params := &p_cloud_p_vm_instances.PcloudPvminstancesPostParams{
-		Body: &models.PVMInstanceCreate{
-			ImageID:     imageID,
-			KeyPairName: machineProviderConfig.KeyPairName,
-			Networks:    nets,
-			ServerName:  &machine.Name,
-			Memory:      &memory,
-			Processors:  &processors,
-			ProcType:    &machineProviderConfig.ProcType,
-			SysType:     machineProviderConfig.SysType,
-			UserData:    base64.StdEncoding.EncodeToString(userData),
-		},
+	params := &models.PVMInstanceCreate{
+		ImageID:     imageID,
+		KeyPairName: machineProviderConfig.KeyPairName,
+		Networks:    nets,
+		ServerName:  &machine.Name,
+		Memory:      &memory,
+		Processors:  &processors,
+		ProcType:    &machineProviderConfig.ProcType,
+		SysType:     machineProviderConfig.SysType,
+		UserData:    base64.StdEncoding.EncodeToString(userData),
 	}
+
 	instances, err := client.CreateInstance(params)
 	if err != nil {
 		return nil, mapierrors.CreateMachine("error creating powervs instance: %v", err)

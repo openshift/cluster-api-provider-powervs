@@ -8,7 +8,6 @@ import (
 	reflect "reflect"
 
 	models "github.com/IBM-Cloud/bluemix-go/models"
-	p_cloud_p_vm_instances "github.com/IBM-Cloud/power-go-client/power/client/p_cloud_p_vm_instances"
 	models0 "github.com/IBM-Cloud/power-go-client/power/models"
 	gomock "github.com/golang/mock/gomock"
 )
@@ -37,18 +36,18 @@ func (m *MockClient) EXPECT() *MockClientMockRecorder {
 }
 
 // CreateInstance mocks base method.
-func (m *MockClient) CreateInstance(arg0 *p_cloud_p_vm_instances.PcloudPvminstancesPostParams) (*models0.PVMInstanceList, error) {
+func (m *MockClient) CreateInstance(createParams *models0.PVMInstanceCreate) (*models0.PVMInstanceList, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CreateInstance", arg0)
+	ret := m.ctrl.Call(m, "CreateInstance", createParams)
 	ret0, _ := ret[0].(*models0.PVMInstanceList)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // CreateInstance indicates an expected call of CreateInstance.
-func (mr *MockClientMockRecorder) CreateInstance(arg0 interface{}) *gomock.Call {
+func (mr *MockClientMockRecorder) CreateInstance(createParams interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateInstance", reflect.TypeOf((*MockClient)(nil).CreateInstance), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateInstance", reflect.TypeOf((*MockClient)(nil).CreateInstance), createParams)
 }
 
 // DeleteInstance mocks base method.

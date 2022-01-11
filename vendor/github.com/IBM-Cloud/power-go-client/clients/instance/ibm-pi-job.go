@@ -8,63 +8,58 @@ import (
 	"github.com/IBM-Cloud/power-go-client/helpers"
 
 	"github.com/IBM-Cloud/power-go-client/ibmpisession"
-	"github.com/IBM-Cloud/power-go-client/power/client/p_cloud_instances"
 	"github.com/IBM-Cloud/power-go-client/power/client/p_cloud_jobs"
 	"github.com/IBM-Cloud/power-go-client/power/models"
 )
 
 // IBMPIJobClient ...
 type IBMPIJobClient struct {
-	session         *ibmpisession.IBMPISession
-	powerinstanceid string
+	IBMPIClient
 }
 
 // NewIBMPIJobClient ...
-func NewIBMPIJobClient(sess *ibmpisession.IBMPISession, cloudInstanceID string) *IBMPIJobClient {
+func NewIBMPIJobClient(ctx context.Context, sess *ibmpisession.IBMPISession, cloudInstanceID string) *IBMPIJobClient {
 	return &IBMPIJobClient{
-		session:         sess,
-		powerinstanceid: cloudInstanceID,
+		*NewIBMPIClient(ctx, sess, cloudInstanceID),
 	}
 }
 
 // Get information about a job
-func (f *IBMPIJobClient) Get(id, cloudInstanceID string) (*models.Job, error) {
-	params := p_cloud_jobs.NewPcloudCloudinstancesJobsGetParamsWithTimeout(helpers.PIGetTimeOut).WithCloudInstanceID(cloudInstanceID).WithJobID(id)
-	resp, err := f.session.Power.PCloudJobs.PcloudCloudinstancesJobsGet(params, ibmpisession.NewAuth(f.session, cloudInstanceID))
+func (f *IBMPIJobClient) Get(id string) (*models.Job, error) {
+	params := p_cloud_jobs.NewPcloudCloudinstancesJobsGetParams().
+		WithContext(f.ctx).WithTimeout(helpers.PIGetTimeOut).
+		WithCloudInstanceID(f.cloudInstanceID).WithJobID(id)
+	resp, err := f.session.Power.PCloudJobs.PcloudCloudinstancesJobsGet(params, f.authInfo)
 	if err != nil {
 		return nil, fmt.Errorf(errors.GetJobOperationFailed, id, err)
+	}
+	if resp == nil || resp.Payload == nil {
+		return nil, fmt.Errorf("failed to perform get Job operation for job id %s", id)
 	}
 	return resp.Payload, nil
 }
 
-// Get information about a job with Context
-func (f *IBMPIJobClient) GetWithContext(ctx context.Context, id, cloudInstanceID string) (*models.Job, error) {
-	params := p_cloud_jobs.NewPcloudCloudinstancesJobsGetParamsWithContext(ctx).
-		WithTimeout(helpers.PIGetTimeOut).
-		WithCloudInstanceID(cloudInstanceID).
-		WithJobID(id)
-	resp, err := f.session.Power.PCloudJobs.PcloudCloudinstancesJobsGet(params, ibmpisession.NewAuth(f.session, cloudInstanceID))
-	if err != nil {
-		return nil, fmt.Errorf(errors.GetJobOperationFailed, id, err)
-	}
-	return resp.Payload, nil
-}
-
-// Update a job
-func (f *IBMPIJobClient) GetAll(cloudInstanceID string, updateparams *p_cloud_instances.PcloudCloudinstancesPutParams) (*models.Jobs, error) {
-	params := p_cloud_jobs.NewPcloudCloudinstancesJobsGetallParamsWithTimeout(helpers.PIGetTimeOut).WithCloudInstanceID(cloudInstanceID)
-	resp, err := f.session.Power.PCloudJobs.PcloudCloudinstancesJobsGetall(params, ibmpisession.NewAuth(f.session, cloudInstanceID))
+// Gell all jobs
+func (f *IBMPIJobClient) GetAll() (*models.Jobs, error) {
+	params := p_cloud_jobs.NewPcloudCloudinstancesJobsGetallParams().
+		WithContext(f.ctx).WithTimeout(helpers.PIGetTimeOut).
+		WithCloudInstanceID(f.cloudInstanceID)
+	resp, err := f.session.Power.PCloudJobs.PcloudCloudinstancesJobsGetall(params, f.authInfo)
 	if err != nil {
 		return nil, fmt.Errorf(errors.GetAllJobsOperationFailed, err)
-
+	}
+	if resp == nil || resp.Payload == nil {
+		return nil, fmt.Errorf("failed to perform get all jobs")
 	}
 	return resp.Payload, nil
 }
 
 // Delete a job
-func (f *IBMPIJobClient) Delete(id, cloudInstanceID string) error {
-	params := p_cloud_jobs.NewPcloudCloudinstancesJobsDeleteParamsWithTimeout(helpers.PIDeleteTimeOut).WithCloudInstanceID(cloudInstanceID).WithJobID(id)
-	_, err := f.session.Power.PCloudJobs.PcloudCloudinstancesJobsDelete(params, ibmpisession.NewAuth(f.session, cloudInstanceID))
+func (f *IBMPIJobClient) Delete(id string) error {
+	params := p_cloud_jobs.NewPcloudCloudinstancesJobsDeleteParams().
+		WithContext(f.ctx).WithTimeout(helpers.PIDeleteTimeOut).
+		WithCloudInstanceID(f.cloudInstanceID).WithJobID(id)
+	_, err := f.session.Power.PCloudJobs.PcloudCloudinstancesJobsDelete(params, f.authInfo)
 	if err != nil {
 		return fmt.Errorf(errors.DeleteJobsOperationFailed, id, err)
 	}
